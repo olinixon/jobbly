@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Campaign {
+  id                       String         @id @default(uuid())
+  name                     String
+  industry                 String
+  clientCompanyName        String
+  subcontractorCompanyName String
+  markupPercentage         Float
+  commissionPercentage     Float
+  clientMarginPercentage   Float
+  status                   CampaignStatus @default(ACTIVE)
+  startDate                DateTime
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  users       User[]
+  leads       Lead[]
+  auditLogs   AuditLog[]
+  attachments Attachment[]
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role
+  campaignId   String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  campaign    Campaign?    @relation(fields: [campaignId], references: [id])
+  auditLogs   AuditLog[]
+  attachments Attachment[]
+}
+
+model Lead {
+  id                     String     @id @default(uuid())
+  campaignId             String
+  quoteNumber            String     @unique
+  customerName           String
+  customerPhone          String
+  customerEmail          String?
+  propertyAddress        String
+  googleMapsUrl          String
+  propertyPerimeterM     Float?
+  propertyAreaM2         Float?
+  propertyStoreys        Int?
+  contractorRate         Float?
+  customerPrice          Float?
+  grossMarkup            Float?
+  omnisideCommission     Float?
+  clientMargin           Float?
+  status                 LeadStatus @default(LEAD_RECEIVED)
+  source                 String     @default("n8n_webhook")
+  webhookRaw             String?
+  invoiceUrl             String?
+  invoiceUploadedAt      DateTime?
+  invoiceUploadedById    String?
+  commissionReconciled   Boolean    @default(false)
+  commissionReconciledAt DateTime?
+  notes                  String?
+  needsReview            Boolean    @default(false)
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  campaign    Campaign     @relation(fields: [campaignId], references: [id])
+  auditLogs   AuditLog[]
+  attachments Attachment[]
+}
+
+model AuditLog {
+  id              String     @id @default(uuid())
+  leadId          String
+  campaignId      String
+  changedByUserId String
+  changedByName   String
+  oldStatus       LeadStatus
+  newStatus       LeadStatus
+  createdAt       DateTime   @default(now())
+
+  lead     Lead     @relation(fields: [leadId], references: [id])
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  user     User     @relation(fields: [changedByUserId], references: [id])
+}
+
+model Attachment {
+  id               String         @id @default(uuid())
+  leadId           String
+  campaignId       String
+  uploadedByUserId String
+  fileName         String
+  fileType         String
+  fileUrl          String
+  fileSizeBytes    Int
+  attachmentType   AttachmentType @default(INVOICE)
+  createdAt        DateTime       @default(now())
+
+  lead       Lead     @relation(fields: [leadId], references: [id])
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  uploadedBy User     @relation(fields: [uploadedByUserId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+  SUBCONTRACTOR
+}
+
+enum LeadStatus {
+  LEAD_RECEIVED
+  QUOTE_SENT
+  JOB_BOOKED
+  JOB_COMPLETED
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum AttachmentType {
+  INVOICE
+}
