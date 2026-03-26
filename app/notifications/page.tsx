@@ -5,6 +5,7 @@ import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import Link from 'next/link'
+import { formatDateTime } from '@/lib/formatDate'
 
 export default async function NotificationsPage() {
   const session = await auth()
@@ -71,7 +72,7 @@ export default async function NotificationsPage() {
                   </div>
                 </div>
                 <time className="text-xs text-[#9CA3AF] dark:text-[#475569]">
-                  {new Date(n.timestamp).toLocaleString('en-NZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {formatDateTime(n.timestamp)}
                 </time>
               </div>
             </Link>

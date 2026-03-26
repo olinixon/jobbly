@@ -96,17 +96,30 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  // Fire-and-forget email — don't let it block the response
-  sendNewLeadEmail({
-    quoteNumber,
-    customerName: lead.customerName,
-    customerPhone: lead.customerPhone,
-    propertyAddress: lead.propertyAddress,
-    googleMapsUrl: lead.googleMapsUrl,
-    propertyPerimeterM: lead.propertyPerimeterM,
-    propertyAreaM2: lead.propertyAreaM2,
-    propertyStoreys: lead.propertyStoreys,
-  }).catch(console.error)
+  // Fire-and-forget email to eligible subcontractors
+  ;(async () => {
+    try {
+      const recipients = await prisma.user.findMany({
+        where: { campaignId: campaign.id, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
+        select: { email: true },
+      })
+      if (recipients.length > 0) {
+        await sendNewLeadEmail({
+          to: recipients.map(r => r.email),
+          quoteNumber,
+          customerName: lead.customerName,
+          customerPhone: lead.customerPhone,
+          propertyAddress: lead.propertyAddress,
+          googleMapsUrl: lead.googleMapsUrl,
+          propertyPerimeterM: lead.propertyPerimeterM,
+          propertyAreaM2: lead.propertyAreaM2,
+          propertyStoreys: lead.propertyStoreys,
+        })
+      }
+    } catch (err) {
+      console.error('New lead email failed:', err)
+    }
+  })()
 
   if (missingFields.length > 0) {
     return NextResponse.json({

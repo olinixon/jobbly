@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
 
   const where: Record<string, unknown> = { status: 'JOB_COMPLETED' }
   if (campaignId) where.campaignId = campaignId
-  if (reconciled === 'true') where.commissionReconciled = true
-  if (reconciled === 'false') where.commissionReconciled = false
+  if (reconciled === 'true') where.reconciliationBatchId = { not: null }
+  if (reconciled === 'false') where.reconciliationBatchId = null
   if (from || to) {
     where.updatedAt = {
       ...(from ? { gte: new Date(from) } : {}),

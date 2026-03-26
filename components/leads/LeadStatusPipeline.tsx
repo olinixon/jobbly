@@ -1,3 +1,5 @@
+import { formatDate } from '@/lib/formatDate'
+
 const STEPS = ['LEAD_RECEIVED', 'QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED']
 const LABELS: Record<string, string> = {
   LEAD_RECEIVED: 'Lead Received',
@@ -14,9 +16,7 @@ interface LeadStatusPipelineProps {
 export default function LeadStatusPipeline({ status, jobBookedDate }: LeadStatusPipelineProps) {
   const currentIdx = STEPS.indexOf(status)
 
-  const bookedDateStr = jobBookedDate
-    ? new Date(jobBookedDate).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })
-    : null
+  const bookedDateStr = jobBookedDate ? formatDate(jobBookedDate) : null
 
   return (
     <div className="flex items-start gap-0">

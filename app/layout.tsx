@@ -13,16 +13,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                const theme = localStorage.getItem('jobbly-theme');
-                if (theme === 'dark') document.documentElement.classList.add('dark');
-              } catch {}
-            `,
-          }}
-        />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/theme-init.js" />
       </head>
       <body className={`${inter.className} min-h-screen`}>{children}</body>
     </html>

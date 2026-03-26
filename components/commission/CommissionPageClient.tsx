@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
+import { formatDateTime, formatDate } from '@/lib/formatDate'
 
 interface MonthLead {
   quoteNumber: string
@@ -125,6 +126,29 @@ export default function CommissionPageClient() {
     }
   }
 
+  function exportPdfFromMonth(month: MonthData) {
+    setInvoiceData({
+      id: month.batchId ?? '__export__',
+      label: month.label,
+      createdAt: new Date().toISOString(),
+      campaign: { name: '', clientCompanyName: '' },
+      leads: month.leads,
+      totalCommission: month.totalCommission,
+    })
+    setShowInvoiceModal(true)
+    setTimeout(() => window.print(), 300)
+  }
+
+  async function exportPdfFromBatch(batchId: string) {
+    const res = await fetch(`/api/commission/invoice/${batchId}`)
+    if (res.ok) {
+      const data = await res.json()
+      setInvoiceData({ ...data, totalCommission: data.totalCommission })
+      setShowInvoiceModal(true)
+      setTimeout(() => window.print(), 300)
+    }
+  }
+
   async function reconcile() {
     setReconciling(true)
     const monthKeys = selectedMonths.map(m => m.monthKey)
@@ -210,6 +234,9 @@ export default function CommissionPageClient() {
                     <span>Commission: <span className="font-semibold text-[#16A34A]">{fmt(month.totalCommission)}</span></span>
                   </div>
                 </button>
+                <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); exportPdfFromMonth(month) }}>
+                  Export PDF
+                </Button>
               </div>
 
               {expanded.has(month.monthKey) && (
@@ -293,7 +320,7 @@ export default function CommissionPageClient() {
                     <tr key={batch.id} className="border-b border-[#F3F4F6] dark:border-[#0F172A]">
                       <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{batch.label}</td>
                       <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8]">
-                        {new Date(batch.reconciledAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        {formatDateTime(batch.reconciledAt)}
                       </td>
                       <td className="px-4 py-3 text-center text-[#111827] dark:text-[#F1F5F9]">{batch.totalJobs}</td>
                       <td className="px-4 py-3 text-right font-semibold text-[#16A34A]">{fmt(batch.totalCommission)}</td>
@@ -301,6 +328,9 @@ export default function CommissionPageClient() {
                         <div className="flex gap-2 justify-end">
                           <Button size="sm" variant="secondary" onClick={() => openInvoiceFromBatch(batch.id)}>
                             View Invoice
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => exportPdfFromBatch(batch.id)}>
+                            Export PDF
                           </Button>
                           <Button size="sm" variant="danger" onClick={() => setShowUnreconcileModal(batch)}>
                             Unreconcile
@@ -384,7 +414,7 @@ export default function CommissionPageClient() {
               </div>
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[#111827] dark:text-[#F1F5F9] mb-6">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Generated:</dt>
-                <dd>{new Date().toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}</dd>
+                <dd>{formatDate(new Date())}</dd>
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Period:</dt>
                 <dd>{invoiceData.label}</dd>
                 {invoiceData.campaign?.name && (
@@ -401,7 +431,7 @@ export default function CommissionPageClient() {
                 <div className="grid grid-cols-[auto_1fr_auto] gap-x-6 text-xs text-[#6B7280] dark:text-[#94A3B8] mb-2 font-bold uppercase">
                   <span>Quote #</span>
                   <span>Customer Name</span>
-                  <span>Commission</span>
+                  <span>Commission (ex GST)</span>
                 </div>
                 {invoiceData.leads.map(lead => (
                   <div key={lead.quoteNumber} className="grid grid-cols-[auto_1fr_auto] gap-x-6 text-sm py-1 border-b border-[#F3F4F6] dark:border-[#1E293B]">
@@ -417,9 +447,17 @@ export default function CommissionPageClient() {
                   <span className="text-[#6B7280] dark:text-[#94A3B8]">Total jobs:</span>
                   <span className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{invoiceData.leads.length}</span>
                 </div>
-                <div className="flex justify-between text-base font-bold">
-                  <span className="text-[#111827] dark:text-[#F1F5F9]">Total commission owed:</span>
-                  <span className="text-[#16A34A]">{fmt(invoiceData.totalCommission)}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#6B7280] dark:text-[#94A3B8]">Subtotal (ex GST):</span>
+                  <span className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(invoiceData.totalCommission)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#6B7280] dark:text-[#94A3B8]">GST (15%):</span>
+                  <span className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(invoiceData.totalCommission * 0.15)}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold border-t border-[#E5E7EB] dark:border-[#334155] pt-2 mt-1">
+                  <span className="text-[#111827] dark:text-[#F1F5F9]">Total (incl. GST):</span>
+                  <span className="text-[#16A34A]">{fmt(invoiceData.totalCommission * 1.15)}</span>
                 </div>
               </div>
 

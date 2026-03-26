@@ -3,7 +3,8 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendJobCompletedEmail } from '@/lib/notifications'
 
-const STATUS_ORDER = ['LEAD_RECEIVED', 'QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED']
+const STATUS_ORDER = ['LEAD_RECEIVED', 'QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED'] as const
+type LeadStatus = typeof STATUS_ORDER[number]
 
 export async function GET(
   _request: NextRequest,
@@ -47,7 +48,49 @@ export async function PATCH(
 
   const body = await request.json()
 
-  // Handle status update
+  // Handle status REVERT (one step back, all roles)
+  if (body.revert === true) {
+    const currentIdx = STATUS_ORDER.indexOf(lead.status)
+    if (currentIdx <= 0) {
+      return NextResponse.json({ error: 'Cannot revert further.' }, { status: 400 })
+    }
+    if (lead.reconciliationBatchId) {
+      return NextResponse.json(
+        { error: 'This job has been reconciled. Unreconcile it first before reverting the status.' },
+        { status: 400 }
+      )
+    }
+
+    const previousStatus = STATUS_ORDER[currentIdx - 1]
+    const clearData: Record<string, unknown> = { status: previousStatus }
+
+    if (lead.status === 'JOB_BOOKED') clearData.jobBookedDate = null
+    if (lead.status === 'JOB_COMPLETED') {
+      clearData.jobCompletedAt = null
+      clearData.invoiceUrl = null
+      clearData.invoiceUploadedAt = null
+      clearData.invoiceUploadedById = null
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.auditLog.create({
+        data: {
+          leadId: lead.id,
+          campaignId: lead.campaignId,
+          changedByUserId: session.user.id,
+          changedByName: session.user.name,
+          oldStatus: lead.status,
+          newStatus: previousStatus,
+        },
+      })
+      await tx.lead.update({ where: { id: lead.id }, data: clearData })
+    })
+
+    const updated = await prisma.lead.findUnique({ where: { quoteNumber } })
+    return NextResponse.json(updated)
+  }
+
+  // Handle status update (forward only)
   if (body.status) {
     const currentIdx = STATUS_ORDER.indexOf(lead.status)
     const newIdx = STATUS_ORDER.indexOf(body.status)
@@ -86,7 +129,7 @@ export async function PATCH(
           changedByUserId: session.user.id,
           changedByName: session.user.name,
           oldStatus: lead.status,
-          newStatus: body.status,
+          newStatus: body.status as LeadStatus,
         },
       })
       await tx.lead.update({
@@ -96,14 +139,27 @@ export async function PATCH(
     })
 
     if (body.status === 'JOB_COMPLETED') {
-      sendJobCompletedEmail({
-        quoteNumber,
-        customerName: lead.customerName,
-        propertyAddress: lead.propertyAddress,
-        contractorRate: lead.contractorRate,
-        customerPrice: lead.customerPrice,
-        omnisideCommission: lead.omnisideCommission,
-      }).catch(console.error)
+      ;(async () => {
+        try {
+          const admins = await prisma.user.findMany({
+            where: { campaignId: lead.campaignId, role: 'ADMIN', isActive: true, notifyJobCompleted: true },
+            select: { email: true },
+          })
+          if (admins.length > 0) {
+            await sendJobCompletedEmail({
+              to: admins.map(a => a.email),
+              quoteNumber,
+              customerName: lead.customerName,
+              propertyAddress: lead.propertyAddress,
+              contractorRate: lead.contractorRate,
+              customerPrice: lead.customerPrice,
+              omnisideCommission: lead.omnisideCommission,
+            })
+          }
+        } catch (err) {
+          console.error('Job completed email failed:', err)
+        }
+      })()
     }
   }
 

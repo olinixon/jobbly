@@ -6,6 +6,7 @@ import PageHeader from '@/components/layout/PageHeader'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import Link from 'next/link'
+import { formatDateTime } from '@/lib/formatDate'
 
 export default async function AuditPage({
   searchParams,
@@ -74,7 +75,7 @@ export default async function AuditPage({
                 {logs.map((log) => (
                   <tr key={log.id} className="border-b border-[#F3F4F6] dark:border-[#0F172A] hover:bg-[#F9FAFB] dark:hover:bg-[#0F172A] transition-colors">
                     <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] whitespace-nowrap text-xs">
-                      {new Date(log.createdAt).toLocaleString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {formatDateTime(log.createdAt)}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs">
                       <Link href={`/leads/${log.lead.quoteNumber}`} className="text-[#2563EB] dark:text-[#3B82F6] hover:underline">

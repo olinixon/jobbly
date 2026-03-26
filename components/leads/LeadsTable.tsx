@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Badge from '@/components/ui/Badge'
+import { formatDateTime } from '@/lib/formatDate'
 
 interface Lead {
   id: string
@@ -36,8 +37,8 @@ export default function LeadsTable({ leads, isAdmin }: LeadsTableProps) {
               {isAdmin && <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Phone</th>}
               <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Status</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Date</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Price</th>
-              {isAdmin && <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Commission</th>}
+              <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Price <span className="normal-case font-normal text-[#9CA3AF]">(ex GST)</span></th>
+              {isAdmin && <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Commission <span className="normal-case font-normal text-[#9CA3AF]">(ex GST)</span></th>}
               {isAdmin && <th className="px-4 py-3"></th>}
             </tr>
           </thead>
@@ -56,7 +57,7 @@ export default function LeadsTable({ leads, isAdmin }: LeadsTableProps) {
                 {isAdmin && <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8]">{lead.customerPhone}</td>}
                 <td className="px-4 py-3"><Badge status={lead.status} /></td>
                 <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] whitespace-nowrap">
-                  {new Date(lead.createdAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {formatDateTime(lead.createdAt)}
                 </td>
                 <td className="px-4 py-3 text-right text-[#111827] dark:text-[#F1F5F9]">
                   {lead.customerPrice != null ? `$${lead.customerPrice.toFixed(2)}` : '—'}

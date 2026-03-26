@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import { formatDateTime } from '@/lib/formatDate'
 
 interface User {
   id: string
@@ -46,6 +47,12 @@ export default function UsersTable({ users, campaigns, currentUserId }: UsersTab
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [toast, setToast] = useState<{ msg: string; warn?: boolean } | null>(null)
+
+  function showToast(msg: string, warn = false) {
+    setToast({ msg, warn })
+    setTimeout(() => setToast(null), 5000)
+  }
 
   const campaignOptions = [
     { value: '', label: '— None (Admin only) —' },
@@ -80,12 +87,16 @@ export default function UsersTable({ users, campaigns, currentUserId }: UsersTab
       body: JSON.stringify(body),
     })
     setSaving(false)
+    const data = await res.json()
     if (!res.ok) {
-      const data = await res.json()
       setError(data.error ?? 'Something went wrong.')
       return
     }
     setShowModal(false)
+    if (!editUser) {
+      if (data.warning) showToast(`User created — ${data.warning}`, true)
+      else showToast(`User created — welcome email sent to ${data.email}`)
+    }
     router.refresh()
   }
 
@@ -111,6 +122,11 @@ export default function UsersTable({ users, campaigns, currentUserId }: UsersTab
 
   return (
     <>
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${toast.warn ? 'bg-amber-500' : 'bg-green-600'}`}>
+          {toast.msg}
+        </div>
+      )}
       <div className="flex justify-end mb-4">
         <Button onClick={openAdd}>+ Add User</Button>
       </div>
@@ -142,7 +158,7 @@ export default function UsersTable({ users, campaigns, currentUserId }: UsersTab
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-[#6B7280] dark:text-[#94A3B8]">
-                    {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}
+                    {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Never'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">

@@ -5,6 +5,7 @@ import AppShell from '@/components/layout/AppShell'
 import Badge from '@/components/ui/Badge'
 import JobActions from '@/components/leads/JobActions'
 import Link from 'next/link'
+import { formatDateTime, formatDate } from '@/lib/formatDate'
 
 export default async function JobDetailPage({
   params,
@@ -86,14 +87,14 @@ export default async function JobDetailPage({
               <div className="flex justify-between">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Received</dt>
                 <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">
-                  {new Date(job.createdAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {formatDateTime(job.createdAt)}
                 </dd>
               </div>
               {job.jobBookedDate && (
                 <div className="flex justify-between">
                   <dt className="text-[#6B7280] dark:text-[#94A3B8]">Booked Date</dt>
                   <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">
-                    {new Date(job.jobBookedDate).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {formatDate(job.jobBookedDate)}
                   </dd>
                 </div>
               )}

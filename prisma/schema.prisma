@@ -29,16 +29,18 @@ model Campaign {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  name         String
-  email        String    @unique
-  passwordHash String
-  role         Role
-  campaignId   String?
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  name                 String
+  email                String    @unique
+  passwordHash         String
+  role                 Role
+  campaignId           String?
+  isActive             Boolean   @default(true)
+  lastLoginAt          DateTime?
+  notifyNewLead        Boolean   @default(true)
+  notifyJobCompleted   Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   campaign    Campaign?    @relation(fields: [campaignId], references: [id])
   auditLogs   AuditLog[]

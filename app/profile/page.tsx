@@ -5,10 +5,16 @@ import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import Badge from '@/components/ui/Badge'
 import PasswordChangeForm from '@/components/profile/PasswordChangeForm'
+import NotificationPreferences from '@/components/profile/NotificationPreferences'
 
 export default async function ProfilePage() {
   const session = await auth()
   if (!session) redirect('/login')
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { notifyNewLead: true, notifyJobCompleted: true },
+  })
 
   const campaignName =
     session.user.role === 'ADMIN'
@@ -47,6 +53,13 @@ export default async function ProfilePage() {
 
         {/* Change Password */}
         <PasswordChangeForm />
+
+        {/* Notification Preferences */}
+        <NotificationPreferences
+          role={session.user.role}
+          notifyNewLead={user?.notifyNewLead ?? true}
+          notifyJobCompleted={user?.notifyJobCompleted ?? true}
+        />
       </div>
     </AppShell>
   )

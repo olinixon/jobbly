@@ -6,6 +6,7 @@ import Badge from '@/components/ui/Badge'
 import LeadStatusPipeline from '@/components/leads/LeadStatusPipeline'
 import LeadActions from '@/components/leads/LeadActions'
 import Link from 'next/link'
+import { formatDateTime, formatDate } from '@/lib/formatDate'
 
 export default async function LeadDetailPage({
   params,
@@ -33,9 +34,6 @@ export default async function LeadDetailPage({
 
   const isAdmin = session.user.role === 'ADMIN'
   const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
-
-  const fmtDate = (d: Date | null | undefined) =>
-    d ? new Date(d).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' }) : null
 
   return (
     <AppShell>
@@ -123,7 +121,7 @@ export default async function LeadDetailPage({
               <div className="flex justify-between">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Received</dt>
                 <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">
-                  {new Date(lead.createdAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {formatDateTime(lead.createdAt)}
                 </dd>
               </div>
             </dl>
@@ -159,25 +157,31 @@ export default async function LeadDetailPage({
               <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-4">Financials</h2>
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Contractor Rate</dt>
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Contractor Rate <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
                   <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.contractorRate)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Customer Price</dt>
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Customer Price <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
                   <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.customerPrice)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Gross Markup</dt>
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Gross Markup <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
                   <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.grossMarkup)}</dd>
                 </div>
                 <div className="flex justify-between border-t border-[#E5E7EB] dark:border-[#334155] pt-3">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Omniside Commission</dt>
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Omniside Commission <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
                   <dd className="font-bold text-[#16A34A]">{fmt(lead.omnisideCommission)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Client Margin</dt>
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Client Margin <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
                   <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.clientMargin)}</dd>
                 </div>
+                {lead.customerPrice != null && (
+                  <div className="flex justify-between border-t border-[#E5E7EB] dark:border-[#334155] pt-3">
+                    <dt className="text-[#6B7280] dark:text-[#94A3B8]">Customer Price <span className="text-xs text-[#9CA3AF]">(incl. GST)</span></dt>
+                    <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.customerPrice * 1.15)}</dd>
+                  </div>
+                )}
                 {lead.reconciliationBatchId && (
                   <div className="flex justify-between items-center border-t border-[#E5E7EB] dark:border-[#334155] pt-3">
                     <dt className="text-[#6B7280] dark:text-[#94A3B8]">Commission</dt>
@@ -201,7 +205,7 @@ export default async function LeadDetailPage({
                   <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">Invoice attached</p>
                   {lead.invoiceUploadedAt && (
                     <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] mt-0.5">
-                      Uploaded {new Date(lead.invoiceUploadedAt).toLocaleDateString('en-NZ')}
+                      Uploaded {formatDateTime(lead.invoiceUploadedAt)}
                     </p>
                   )}
                 </div>
@@ -230,15 +234,15 @@ export default async function LeadDetailPage({
                 {lead.auditLogs.map((log) => (
                   <li key={log.id} className="text-sm">
                     <span className="text-[#6B7280] dark:text-[#94A3B8]">
-                      {new Date(log.createdAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {formatDateTime(log.createdAt)}
                     </span>
                     {' · '}
                     <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">{log.changedByName}</span>
                     {' moved to '}
                     <Badge status={log.newStatus} />
-                    {log.newStatus === 'JOB_BOOKED' && fmtDate(lead.jobBookedDate) && (
+                    {log.newStatus === 'JOB_BOOKED' && lead.jobBookedDate && (
                       <span className="ml-1 text-[#6B7280] dark:text-[#94A3B8]">
-                        — Booked: {fmtDate(lead.jobBookedDate)}
+                        — Booked: {formatDate(lead.jobBookedDate)}
                       </span>
                     )}
                   </li>

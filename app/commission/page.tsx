@@ -29,10 +29,10 @@ export default async function CommissionPage() {
       <PageHeader title="Commission" subtitle="Track and reconcile completed jobs by month" />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Commission Earned" value={`$${totalEarned.toFixed(2)}`} />
-        <StatCard label="Commission Pending" value={`$${totalPending.toFixed(2)}`} />
+        <StatCard label="Commission Earned (ex GST)" value={`$${totalEarned.toFixed(2)}`} />
+        <StatCard label="Commission Pending (ex GST)" value={`$${totalPending.toFixed(2)}`} />
         <StatCard label="Jobs Completed" value={totalCompleted} />
-        <StatCard label="Avg Commission" value={`$${avgCommission.toFixed(2)}`} />
+        <StatCard label="Avg Commission (ex GST)" value={`$${avgCommission.toFixed(2)}`} />
       </div>
 
       <CommissionPageClient />

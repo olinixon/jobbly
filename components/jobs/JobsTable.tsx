@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Badge from '@/components/ui/Badge'
+import { formatDateTime } from '@/lib/formatDate'
 
 interface Job {
   id: string
@@ -40,7 +41,7 @@ export default function JobsTable({ jobs }: { jobs: Job[] }) {
                 <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] max-w-48 truncate">{job.propertyAddress}</td>
                 <td className="px-4 py-3"><Badge status={job.status} /></td>
                 <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] whitespace-nowrap">
-                  {new Date(job.createdAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {formatDateTime(job.createdAt)}
                 </td>
               </tr>
             ))}
