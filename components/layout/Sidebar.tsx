@@ -109,9 +109,13 @@ export default function Sidebar({ role, userName }: SidebarProps) {
 
         {/* User + logout */}
         <div className="px-4 py-4 border-t border-[#E5E7EB] dark:border-[#334155]">
-          <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9] truncate">
+          <Link
+            href="/profile"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 text-sm font-medium text-[#111827] dark:text-[#F1F5F9] hover:text-[#2563EB] dark:hover:text-[#3B82F6] transition-colors truncate"
+          >
             👤 {userName}
-          </p>
+          </Link>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
             className="mt-2 text-sm text-[#6B7280] dark:text-[#94A3B8] hover:text-[#DC2626] transition-colors"

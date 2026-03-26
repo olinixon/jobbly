@@ -1,12 +1,11 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import type { Lead } from '@/app/generated/prisma/client'
 import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import { StatCard } from '@/components/ui/Card'
-import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
+import LeadsTable from '@/components/leads/LeadsTable'
 import Link from 'next/link'
 
 interface SearchParams {
@@ -55,18 +54,30 @@ export default async function DashboardPage({
     prisma.lead.count({ where }),
     prisma.lead.findMany({
       where: campaignId ? { campaignId } : {},
-      select: { status: true, customerPrice: true, omnisideCommission: true, commissionReconciled: true },
+      select: {
+        status: true,
+        customerPrice: true,
+        omnisideCommission: true,
+        reconciliationBatchId: true,
+      },
     }),
   ])
 
-  type StatLead = { status: string; customerPrice: number | null; omnisideCommission: number | null; commissionReconciled: boolean }
+  type StatLead = {
+    status: string
+    customerPrice: number | null
+    omnisideCommission: number | null
+    reconciliationBatchId: string | null
+  }
+
   const totalLeads = stats.length
   const quotesSent = stats.filter((l: StatLead) => ['QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
   const jobsBooked = stats.filter((l: StatLead) => ['JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
   const jobsCompleted = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED').length
-  const totalRevenue = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED').reduce((s: number, l: StatLead) => s + (l.customerPrice ?? 0), 0)
-  const commissionEarned = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED' && l.commissionReconciled).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
-  const commissionPending = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED' && !l.commissionReconciled).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
+  const completedLeads = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED')
+  const totalRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.customerPrice ?? 0), 0)
+  const commissionEarned = completedLeads.filter((l: StatLead) => l.reconciliationBatchId != null).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
+  const commissionPending = completedLeads.filter((l: StatLead) => l.reconciliationBatchId == null).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
   const isAdmin = session.user.role === 'ADMIN'
 
   return (
@@ -86,11 +97,7 @@ export default async function DashboardPage({
 
       {/* Filters */}
       <form method="GET" className="flex flex-wrap gap-3 mb-4">
-        <input
-          name="campaignId"
-          type="hidden"
-          value={campaignId ?? ''}
-        />
+        <input name="campaignId" type="hidden" value={campaignId ?? ''} />
         <input
           name="search"
           defaultValue={search}
@@ -120,70 +127,12 @@ export default async function DashboardPage({
       {leads.length === 0 ? (
         <EmptyState message="No leads yet. They'll appear here automatically after each call." />
       ) : (
-        <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#E5E7EB] dark:border-[#334155]">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Quote #</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Customer</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Address</th>
-                  {isAdmin && <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Phone</th>}
-                  <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Date</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Price</th>
-                  {isAdmin && <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Commission</th>}
-                  {isAdmin && <th className="px-4 py-3"></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((lead: Lead) => (
-                  <tr
-                    key={lead.id}
-                    className="border-b border-[#F3F4F6] dark:border-[#1E293B] hover:bg-[#F9FAFB] dark:hover:bg-[#0F172A] transition-colors"
-                  >
-                    <td className="px-4 py-3 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">
-                      <Link href={`/leads/${lead.quoteNumber}`} className="hover:text-[#2563EB] dark:hover:text-[#3B82F6]">
-                        {lead.quoteNumber}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.customerName}</td>
-                    <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] max-w-48 truncate">{lead.propertyAddress}</td>
-                    {isAdmin && <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8]">{lead.customerPhone}</td>}
-                    <td className="px-4 py-3"><Badge status={lead.status} /></td>
-                    <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] whitespace-nowrap">
-                      {new Date(lead.createdAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-3 text-right text-[#111827] dark:text-[#F1F5F9]">
-                      {lead.customerPrice != null ? `$${lead.customerPrice.toFixed(2)}` : '—'}
-                    </td>
-                    {isAdmin && (
-                      <td className="px-4 py-3 text-right text-[#111827] dark:text-[#F1F5F9]">
-                        {lead.omnisideCommission != null ? `$${lead.omnisideCommission.toFixed(2)}` : '—'}
-                      </td>
-                    )}
-                    {isAdmin && (
-                      <td className="px-4 py-3 text-right">
-                        <a
-                          href={lead.googleMapsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#2563EB] dark:text-[#3B82F6] hover:underline text-xs"
-                          title="View on Google Maps"
-                        >
-                          🗺️
-                        </a>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <>
+          <LeadsTable leads={leads} isAdmin={isAdmin} />
 
           {/* Pagination */}
           {total > pageSize && (
-            <div className="px-4 py-3 flex items-center justify-between border-t border-[#E5E7EB] dark:border-[#334155]">
+            <div className="px-4 py-3 flex items-center justify-between mt-2">
               <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">
                 Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
               </p>
@@ -207,7 +156,7 @@ export default async function DashboardPage({
               </div>
             </div>
           )}
-        </div>
+        </>
       )}
     </AppShell>
   )

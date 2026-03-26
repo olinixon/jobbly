@@ -12,32 +12,76 @@ const STATUS_LABELS: Record<string, string> = {
   JOB_COMPLETED: 'Job Completed',
 }
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+const CURRENT_YEAR = new Date().getFullYear()
+
 interface JobActionsProps {
   quoteNumber: string
   currentStatus: string
   hasInvoice: boolean
   invoiceUrl: string | null
+  markupPercentage: number
 }
 
-export default function JobActions({ quoteNumber, currentStatus, hasInvoice, invoiceUrl }: JobActionsProps) {
+export default function JobActions({ quoteNumber, currentStatus, hasInvoice, invoiceUrl, markupPercentage }: JobActionsProps) {
   const router = useRouter()
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [contractorRate, setContractorRate] = useState('')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Job booked date
+  const [bookedDay, setBookedDay] = useState('')
+  const [bookedMonth, setBookedMonth] = useState('')
+  const [bookedYear, setBookedYear] = useState('')
+  const [dateError, setDateError] = useState('')
+
   const currentIdx = STATUS_ORDER.indexOf(currentStatus)
   const nextStatus = currentIdx < STATUS_ORDER.length - 1 ? STATUS_ORDER[currentIdx + 1] : null
+  const isBookingStep = nextStatus === 'JOB_BOOKED'
 
-  async function updateStatus(status: string) {
+  const previewPrice =
+    contractorRate && !isNaN(parseFloat(contractorRate))
+      ? (parseFloat(contractorRate) * (1 + markupPercentage / 100)).toFixed(2)
+      : null
+
+  function validateBookedDate(): Date | null {
+    if (!bookedDay || !bookedMonth || !bookedYear) return null
+    const d = new Date(parseInt(bookedYear), parseInt(bookedMonth) - 1, parseInt(bookedDay))
+    if (
+      d.getFullYear() !== parseInt(bookedYear) ||
+      d.getMonth() !== parseInt(bookedMonth) - 1 ||
+      d.getDate() !== parseInt(bookedDay)
+    ) return null
+    return d
+  }
+
+  const bookedDateFilled = !!(bookedDay && bookedMonth && bookedYear)
+  const bookedDateValid = bookedDateFilled ? validateBookedDate() !== null : true
+
+  async function updateStatus() {
+    if (!nextStatus) return
     setSaving(true)
     setError('')
+
+    const body: Record<string, unknown> = { status: nextStatus }
+    if (isBookingStep) {
+      const d = validateBookedDate()
+      if (!d) { setDateError('Please select a valid date.'); setSaving(false); return }
+      body.jobBookedDate = d.toISOString()
+    }
+
     const res = await fetch(`/api/leads/${quoteNumber}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(body),
     })
     setSaving(false)
     if (!res.ok) {
@@ -50,12 +94,13 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
   }
 
   async function uploadInvoice() {
-    if (!file) return
+    if (!file || !contractorRate) return
     setUploading(true)
     setError('')
     const fd = new FormData()
     fd.append('file', file)
     fd.append('quoteNumber', quoteNumber)
+    fd.append('contractorRate', contractorRate)
     const res = await fetch('/api/upload', { method: 'POST', body: fd })
     setUploading(false)
     if (!res.ok) {
@@ -76,11 +121,11 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
         </div>
         <div className="flex flex-wrap gap-3">
           {nextStatus && (
-            <Button onClick={() => setShowStatusModal(true)}>
+            <Button onClick={() => { setError(''); setDateError(''); setShowStatusModal(true) }}>
               Move to {STATUS_LABELS[nextStatus]}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => setShowInvoiceModal(true)}>
+          <Button variant="secondary" onClick={() => { setError(''); setShowInvoiceModal(true) }}>
             {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
           </Button>
         </div>
@@ -101,6 +146,7 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
         )}
       </div>
 
+      {/* Status modal */}
       {showStatusModal && nextStatus && (
         <Modal title="Update Status" onClose={() => setShowStatusModal(false)}>
           <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-4">
@@ -111,12 +157,54 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
               </span>
             )}
           </p>
+
+          {isBookingStep && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-[#374151] dark:text-[#CBD5E1] mb-2">Job booked date</p>
+              <div className="flex gap-2">
+                <select
+                  value={bookedDay}
+                  onChange={(e) => { setBookedDay(e.target.value); setDateError('') }}
+                  className="flex-1 px-2 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                >
+                  <option value="">Day</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <select
+                  value={bookedMonth}
+                  onChange={(e) => { setBookedMonth(e.target.value); setDateError('') }}
+                  className="flex-[2] px-2 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                >
+                  <option value="">Month</option>
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={bookedYear}
+                  onChange={(e) => { setBookedYear(e.target.value); setDateError('') }}
+                  className="flex-1 px-2 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+                >
+                  <option value="">Year</option>
+                  <option value={CURRENT_YEAR}>{CURRENT_YEAR}</option>
+                  <option value={CURRENT_YEAR + 1}>{CURRENT_YEAR + 1}</option>
+                </select>
+              </div>
+              {dateError && <p className="mt-1 text-xs text-[#DC2626]">{dateError}</p>}
+              {bookedDateFilled && !bookedDateValid && (
+                <p className="mt-1 text-xs text-[#DC2626]">Please select a valid date.</p>
+              )}
+            </div>
+          )}
+
           {error && <p className="text-sm text-[#DC2626] mb-3">{error}</p>}
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setShowStatusModal(false)}>Cancel</Button>
             <Button
-              onClick={() => updateStatus(nextStatus)}
-              disabled={saving || (nextStatus === 'JOB_COMPLETED' && !hasInvoice)}
+              onClick={updateStatus}
+              disabled={saving || (nextStatus === 'JOB_COMPLETED' && !hasInvoice) || (isBookingStep && !bookedDateFilled) || (isBookingStep && !bookedDateValid)}
             >
               {saving ? 'Saving…' : 'Confirm'}
             </Button>
@@ -124,19 +212,45 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
         </Modal>
       )}
 
+      {/* Invoice modal */}
       {showInvoiceModal && (
         <Modal title="Attach Invoice" onClose={() => setShowInvoiceModal(false)}>
-          <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-4">Upload PDF, JPG, or PNG. Max 10MB.</p>
-          <input
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-[#374151] dark:text-[#CBD5E1] mb-4"
-          />
+          <div className="space-y-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">
+                Contractor rate (ex GST)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={contractorRate}
+                onChange={(e) => setContractorRate(e.target.value)}
+                placeholder="e.g. 200.00"
+                className="w-full px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              />
+              {previewPrice && (
+                <p className="mt-1 text-xs text-[#6B7280] dark:text-[#94A3B8]">
+                  Customer price: <span className="font-semibold text-[#111827] dark:text-[#F1F5F9]">${previewPrice}</span>
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">
+                Invoice file (PDF, JPG, or PNG — max 10MB)
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-[#374151] dark:text-[#CBD5E1]"
+              />
+            </div>
+          </div>
           {error && <p className="text-sm text-[#DC2626] mb-3">{error}</p>}
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setShowInvoiceModal(false)}>Cancel</Button>
-            <Button onClick={uploadInvoice} disabled={!file || uploading}>
+            <Button onClick={uploadInvoice} disabled={!file || !contractorRate || uploading}>
               {uploading ? 'Uploading…' : 'Upload'}
             </Button>
           </div>

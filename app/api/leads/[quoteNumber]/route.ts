@@ -23,7 +23,6 @@ export async function GET(
 
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Scope check
   if (session.user.role !== 'ADMIN' && lead.campaignId !== session.user.campaignId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -54,10 +53,7 @@ export async function PATCH(
     const newIdx = STATUS_ORDER.indexOf(body.status)
 
     if (newIdx <= currentIdx) {
-      return NextResponse.json(
-        { error: 'Status can only move forward' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Status can only move forward' }, { status: 400 })
     }
 
     if (body.status === 'JOB_COMPLETED' && !lead.invoiceUrl) {
@@ -65,6 +61,21 @@ export async function PATCH(
         { error: 'Attach an invoice before marking this job complete' },
         { status: 400 }
       )
+    }
+
+    if (body.status === 'JOB_BOOKED' && !body.jobBookedDate) {
+      return NextResponse.json(
+        { error: 'A job booked date is required.' },
+        { status: 400 }
+      )
+    }
+
+    const updateData: Record<string, unknown> = { status: body.status }
+    if (body.status === 'JOB_BOOKED' && body.jobBookedDate) {
+      updateData.jobBookedDate = new Date(body.jobBookedDate)
+    }
+    if (body.status === 'JOB_COMPLETED') {
+      updateData.jobCompletedAt = new Date()
     }
 
     await prisma.$transaction(async (tx) => {
@@ -80,7 +91,7 @@ export async function PATCH(
       })
       await tx.lead.update({
         where: { id: lead.id },
-        data: { status: body.status },
+        data: updateData,
       })
     })
 
@@ -99,17 +110,6 @@ export async function PATCH(
   // Handle notes update (admin only)
   if (body.notes !== undefined && session.user.role === 'ADMIN') {
     await prisma.lead.update({ where: { id: lead.id }, data: { notes: body.notes } })
-  }
-
-  // Handle commission reconciliation (admin only)
-  if (body.commissionReconciled !== undefined && session.user.role === 'ADMIN') {
-    await prisma.lead.update({
-      where: { id: lead.id },
-      data: {
-        commissionReconciled: body.commissionReconciled,
-        commissionReconciledAt: body.commissionReconciled ? new Date() : null,
-      },
-    })
   }
 
   const updated = await prisma.lead.findUnique({ where: { quoteNumber } })

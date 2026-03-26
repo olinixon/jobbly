@@ -6,15 +6,25 @@ const LABELS: Record<string, string> = {
   JOB_COMPLETED: 'Job Completed',
 }
 
-export default function LeadStatusPipeline({ status }: { status: string }) {
+interface LeadStatusPipelineProps {
+  status: string
+  jobBookedDate?: Date | null
+}
+
+export default function LeadStatusPipeline({ status, jobBookedDate }: LeadStatusPipelineProps) {
   const currentIdx = STEPS.indexOf(status)
+
+  const bookedDateStr = jobBookedDate
+    ? new Date(jobBookedDate).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+
   return (
-    <div className="flex items-center gap-0">
+    <div className="flex items-start gap-0">
       {STEPS.map((step, idx) => {
         const done = idx <= currentIdx
         const active = idx === currentIdx
         return (
-          <div key={step} className="flex items-center flex-1 min-w-0">
+          <div key={step} className="flex items-start flex-1 min-w-0">
             <div className="flex flex-col items-center">
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 flex-shrink-0 ${
@@ -36,10 +46,15 @@ export default function LeadStatusPipeline({ status }: { status: string }) {
               >
                 {LABELS[step]}
               </span>
+              {step === 'JOB_BOOKED' && bookedDateStr && (
+                <span className="mt-0.5 text-xs text-[#6B7280] dark:text-[#94A3B8] text-center">
+                  {bookedDateStr}
+                </span>
+              )}
             </div>
             {idx < STEPS.length - 1 && (
               <div
-                className={`h-0.5 flex-1 mx-1 ${
+                className={`h-0.5 flex-1 mx-1 mt-3.5 ${
                   idx < currentIdx ? 'bg-[#2563EB]' : 'bg-[#E5E7EB] dark:bg-[#334155]'
                 }`}
               />

@@ -21,6 +21,7 @@ export default async function LeadDetailPage({
     include: {
       auditLogs: { orderBy: { createdAt: 'asc' } },
       attachments: { orderBy: { createdAt: 'desc' }, take: 1 },
+      campaign: { select: { markupPercentage: true } },
     },
   })
 
@@ -32,6 +33,9 @@ export default async function LeadDetailPage({
 
   const isAdmin = session.user.role === 'ADMIN'
   const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
+
+  const fmtDate = (d: Date | null | undefined) =>
+    d ? new Date(d).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' }) : null
 
   return (
     <AppShell>
@@ -54,7 +58,7 @@ export default async function LeadDetailPage({
 
       {/* Status pipeline */}
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 mb-6 shadow-sm">
-        <LeadStatusPipeline status={lead.status} />
+        <LeadStatusPipeline status={lead.status} jobBookedDate={lead.jobBookedDate} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -144,8 +148,8 @@ export default async function LeadDetailPage({
               quoteNumber={lead.quoteNumber}
               currentStatus={lead.status}
               hasInvoice={!!lead.invoiceUrl}
-              commissionReconciled={lead.commissionReconciled}
               notes={lead.notes ?? ''}
+              markupPercentage={lead.campaign.markupPercentage}
             />
           )}
 
@@ -174,14 +178,16 @@ export default async function LeadDetailPage({
                   <dt className="text-[#6B7280] dark:text-[#94A3B8]">Client Margin</dt>
                   <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.clientMargin)}</dd>
                 </div>
-                <div className="flex justify-between items-center border-t border-[#E5E7EB] dark:border-[#334155] pt-3">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Commission Reconciled</dt>
-                  <dd>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${lead.commissionReconciled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                      {lead.commissionReconciled ? 'Yes' : 'No'}
-                    </span>
-                  </dd>
-                </div>
+                {lead.reconciliationBatchId && (
+                  <div className="flex justify-between items-center border-t border-[#E5E7EB] dark:border-[#334155] pt-3">
+                    <dt className="text-[#6B7280] dark:text-[#94A3B8]">Commission</dt>
+                    <dd>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        Reconciled
+                      </span>
+                    </dd>
+                  </div>
+                )}
               </dl>
             </div>
           )}
@@ -226,10 +232,15 @@ export default async function LeadDetailPage({
                     <span className="text-[#6B7280] dark:text-[#94A3B8]">
                       {new Date(log.createdAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {' '}·{' '}
+                    {' · '}
                     <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">{log.changedByName}</span>
                     {' moved to '}
                     <Badge status={log.newStatus} />
+                    {log.newStatus === 'JOB_BOOKED' && fmtDate(lead.jobBookedDate) && (
+                      <span className="ml-1 text-[#6B7280] dark:text-[#94A3B8]">
+                        — Booked: {fmtDate(lead.jobBookedDate)}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ol>

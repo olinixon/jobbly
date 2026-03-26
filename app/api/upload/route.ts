@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { calculateCommission } from '@/lib/calculateCommission'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
@@ -18,10 +19,17 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   const quoteNumber = formData.get('quoteNumber') as string | null
+  const contractorRateRaw = formData.get('contractorRate') as string | null
 
   if (!file || !quoteNumber) {
     return NextResponse.json({ error: 'Missing file or quoteNumber' }, { status: 400 })
   }
+
+  if (!contractorRateRaw || isNaN(parseFloat(contractorRateRaw)) || parseFloat(contractorRateRaw) <= 0) {
+    return NextResponse.json({ error: 'A valid contractor rate is required.' }, { status: 400 })
+  }
+
+  const contractorRate = parseFloat(contractorRateRaw)
 
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: 'File must be under 10MB.' }, { status: 400 })
@@ -34,7 +42,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const lead = await prisma.lead.findUnique({ where: { quoteNumber } })
+  const lead = await prisma.lead.findUnique({
+    where: { quoteNumber },
+    include: { campaign: true },
+  })
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
 
   if (session.user.role !== 'ADMIN' && lead.campaignId !== session.user.campaignId) {
@@ -56,13 +67,24 @@ export async function POST(request: NextRequest) {
 
   const fileUrl = `/uploads/${fileName}`
 
-  await Promise.all([
+  const commission = calculateCommission({
+    contractorRate,
+    markupPercentage: lead.campaign.markupPercentage,
+    commissionPercentage: lead.campaign.commissionPercentage,
+  })
+
+  await prisma.$transaction([
     prisma.lead.update({
       where: { id: lead.id },
       data: {
         invoiceUrl: fileUrl,
         invoiceUploadedAt: new Date(),
         invoiceUploadedById: session.user.id,
+        contractorRate,
+        customerPrice: commission.customerPrice,
+        grossMarkup: commission.grossMarkup,
+        omnisideCommission: commission.omnisideCommission,
+        clientMargin: commission.clientMargin,
       },
     }),
     prisma.attachment.create({
@@ -79,5 +101,5 @@ export async function POST(request: NextRequest) {
     }),
   ])
 
-  return NextResponse.json({ success: true, fileUrl })
+  return NextResponse.json({ success: true, fileUrl, commission })
 }

@@ -15,7 +15,10 @@ export default async function JobDetailPage({
   if (!session || session.user.role !== 'SUBCONTRACTOR') redirect('/login')
 
   const { quoteNumber } = await params
-  const job = await prisma.lead.findUnique({ where: { quoteNumber } })
+  const job = await prisma.lead.findUnique({
+    where: { quoteNumber },
+    include: { campaign: { select: { markupPercentage: true } } },
+  })
 
   if (!job) notFound()
   if (job.campaignId !== session.user.campaignId) redirect('/jobs')
@@ -86,6 +89,14 @@ export default async function JobDetailPage({
                   {new Date(job.createdAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </dd>
               </div>
+              {job.jobBookedDate && (
+                <div className="flex justify-between">
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Booked Date</dt>
+                  <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">
+                    {new Date(job.jobBookedDate).toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </dd>
+                </div>
+              )}
             </dl>
           </div>
         </div>
@@ -96,6 +107,7 @@ export default async function JobDetailPage({
             currentStatus={job.status}
             hasInvoice={!!job.invoiceUrl}
             invoiceUrl={job.invoiceUrl}
+            markupPercentage={job.campaign.markupPercentage}
           />
         </div>
       </div>

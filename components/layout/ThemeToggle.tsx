@@ -6,15 +6,15 @@ export default function ThemeToggle() {
   const [dark, setDark] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('jobbly-theme')
-    if (saved === 'dark') setDark(true)
+    // Read from DOM — the inline script in <head> already applied the class
+    setDark(document.documentElement.classList.contains('dark'))
   }, [])
 
   function toggle() {
     const next = !dark
     setDark(next)
-    localStorage.setItem('jobbly-theme', next ? 'dark' : 'light')
     document.documentElement.classList.toggle('dark', next)
+    localStorage.setItem('jobbly-theme', next ? 'dark' : 'light')
   }
 
   return (
