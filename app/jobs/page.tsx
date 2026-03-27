@@ -5,6 +5,7 @@ import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import JobsTable from '@/components/jobs/JobsTable'
+import { computeUrgency } from '@/lib/urgency'
 
 export default async function JobsPage({
   searchParams,
@@ -18,9 +19,11 @@ export default async function JobsPage({
   const search = sp.search ?? ''
   const statusFilter = sp.status ?? ''
 
+  const isNeedsActionFilter = statusFilter === 'NEEDS_ACTION'
+
   const where: Record<string, unknown> = {}
   if (session.user.campaignId) where.campaignId = session.user.campaignId
-  if (statusFilter) where.status = statusFilter
+  if (statusFilter && !isNeedsActionFilter) where.status = statusFilter
   if (search) {
     where.OR = [
       { quoteNumber: { contains: search } },
@@ -28,10 +31,29 @@ export default async function JobsPage({
     ]
   }
 
-  const jobs = await prisma.lead.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-  })
+  let jobs: { id: string; quoteNumber: string; customerName: string; propertyAddress: string; status: string; createdAt: Date; jobBookedDate?: Date | null; urgencyLevel?: 'HIGH' | 'MEDIUM' | null }[] = []
+
+  if (isNeedsActionFilter) {
+    const activeJobs = await prisma.lead.findMany({ where: { ...where, status: { not: 'JOB_COMPLETED' } }, orderBy: { createdAt: 'asc' } })
+    const urgent = activeJobs
+      .map(l => ({ ...l, urgencyLevel: computeUrgency(l) }))
+      .filter(l => l.urgencyLevel !== null) as typeof jobs
+    urgent.sort((a, b) => {
+      if (a.urgencyLevel === b.urgencyLevel) return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      return a.urgencyLevel === 'HIGH' ? -1 : 1
+    })
+    jobs = urgent
+  } else {
+    // Two-tier sort: active jobs first (oldest first), completed last (oldest first)
+    const [activeJobs, completedJobs] = await Promise.all([
+      prisma.lead.findMany({ where: { ...where, status: { not: 'JOB_COMPLETED' } }, orderBy: { createdAt: 'asc' } }),
+      prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
+    ])
+    jobs = [
+      ...activeJobs.map(l => ({ ...l, urgencyLevel: computeUrgency(l) })),
+      ...completedJobs.map(l => ({ ...l, urgencyLevel: null as null })),
+    ]
+  }
 
   return (
     <AppShell>
@@ -50,6 +72,7 @@ export default async function JobsPage({
           className="px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
         >
           <option value="">All Statuses</option>
+          <option value="NEEDS_ACTION">⚡ Needs Action</option>
           <option value="LEAD_RECEIVED">Lead Received</option>
           <option value="QUOTE_SENT">Quote Sent</option>
           <option value="JOB_BOOKED">Job Booked</option>

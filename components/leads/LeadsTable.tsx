@@ -15,15 +15,25 @@ interface Lead {
   createdAt: Date
   customerPrice: number | null
   omnisideCommission: number | null
+  urgencyLevel?: 'HIGH' | 'MEDIUM' | null
 }
 
 interface LeadsTableProps {
   leads: Lead[]
   isAdmin: boolean
+  role?: string
 }
 
-export default function LeadsTable({ leads, isAdmin }: LeadsTableProps) {
+export default function LeadsTable({ leads, isAdmin, role }: LeadsTableProps) {
   const router = useRouter()
+
+  function handleRowClick(quoteNumber: string) {
+    if (role === 'SUBCONTRACTOR') {
+      router.push(`/jobs/${quoteNumber}`)
+    } else {
+      router.push(`/leads/${quoteNumber}`)
+    }
+  }
 
   return (
     <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
@@ -46,11 +56,15 @@ export default function LeadsTable({ leads, isAdmin }: LeadsTableProps) {
             {leads.map((lead) => (
               <tr
                 key={lead.id}
-                onClick={() => router.push(`/leads/${lead.quoteNumber}`)}
+                onClick={() => handleRowClick(lead.quoteNumber)}
                 className="border-b border-[#F3F4F6] dark:border-[#0F172A] hover:bg-[#F0F7FF] dark:hover:bg-[#1e3a5f]/30 transition-colors cursor-pointer"
               >
                 <td className="px-4 py-3 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">
-                  {lead.quoteNumber}
+                  <div className="flex items-center gap-1.5">
+                    {lead.urgencyLevel === 'HIGH' && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Urgent" />}
+                    {lead.urgencyLevel === 'MEDIUM' && <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Needs attention" />}
+                    {lead.quoteNumber}
+                  </div>
                 </td>
                 <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.customerName}</td>
                 <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] max-w-48 truncate">{lead.propertyAddress}</td>

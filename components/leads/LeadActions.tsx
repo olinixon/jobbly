@@ -285,9 +285,11 @@ export default function LeadActions({
               Move to {STATUS_LABELS[nextStatus]}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => { closeInvoiceModal(); setShowInvoiceModal(true) }}>
-            {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
-          </Button>
+          {(currentStatus === 'JOB_BOOKED' || currentStatus === 'JOB_COMPLETED') && (
+            <Button variant="secondary" onClick={() => { closeInvoiceModal(); setShowInvoiceModal(true) }}>
+              {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => setShowNotesModal(true)}>Edit Notes</Button>
         </div>
         {previousStatus && (

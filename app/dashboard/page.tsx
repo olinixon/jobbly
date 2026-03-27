@@ -9,6 +9,7 @@ import LeadsTable from '@/components/leads/LeadsTable'
 import DashboardFilters from '@/components/dashboard/DashboardFilters'
 import DashboardExportButton from '@/components/dashboard/DashboardExportButton'
 import Link from 'next/link'
+import { computeUrgency } from '@/lib/urgency'
 
 interface SearchParams {
   campaignId?: string
@@ -88,9 +89,11 @@ export default async function DashboardPage({
 
   const dateFilter = getDateFilter(dateRange, fromParam, toParam)
 
+  const isNeedsActionFilter = statusFilter === 'NEEDS_ACTION'
+
   const where: Record<string, unknown> = {}
   if (campaignId) where.campaignId = campaignId
-  if (statusFilter) where.status = statusFilter
+  if (statusFilter && !isNeedsActionFilter) where.status = statusFilter
   if (dateFilter) where.createdAt = dateFilter
   if (search) {
     where.OR = [
@@ -104,13 +107,10 @@ export default async function DashboardPage({
   if (campaignId) statsWhere.campaignId = campaignId
   if (dateFilter) statsWhere.createdAt = dateFilter
 
-  const [leads, total, stats] = await Promise.all([
-    prisma.lead.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
+  // Two-tier sort: active leads first (oldest first), completed last (oldest first)
+  const [activeLeadsRaw, completedLeadsRaw, total, stats] = await Promise.all([
+    prisma.lead.findMany({ where: { ...where, status: { not: 'JOB_COMPLETED' } }, orderBy: { createdAt: 'asc' } }),
+    prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.count({ where }),
     prisma.lead.findMany({
       where: statsWhere,
@@ -124,6 +124,26 @@ export default async function DashboardPage({
       },
     }),
   ])
+
+  const withUrgency = activeLeadsRaw.map(l => ({ ...l, urgencyLevel: computeUrgency(l) }))
+
+  let allLeads: typeof withUrgency
+  if (isNeedsActionFilter) {
+    allLeads = withUrgency
+      .filter(l => l.urgencyLevel !== null)
+      .sort((a, b) => {
+        if (a.urgencyLevel === b.urgencyLevel) return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        return a.urgencyLevel === 'HIGH' ? -1 : 1
+      })
+  } else {
+    allLeads = [
+      ...withUrgency,
+      ...completedLeadsRaw.map(l => ({ ...l, urgencyLevel: null })),
+    ]
+  }
+
+  const displayTotal = isNeedsActionFilter ? allLeads.length : total
+  const leads = allLeads.slice((page - 1) * pageSize, page * pageSize)
 
   type StatLead = {
     status: string
@@ -140,12 +160,12 @@ export default async function DashboardPage({
   const jobsCompleted = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED').length
   const completedLeads = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED')
 
-  // Revenue stats
+  // Revenue stats — all scoped to JOB_COMPLETED leads only (Change 35)
   const totalCustomerRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.customerPrice ?? 0), 0)
-  const campaignRevenue = stats.filter((l: StatLead) => l.grossMarkup != null).reduce((s: number, l: StatLead) => s + (l.grossMarkup ?? 0), 0)
+  const campaignRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.grossMarkup ?? 0), 0)
   const totalJobsRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.contractorRate ?? 0), 0)
 
-  // Commission (admin-only) — always show regardless of reconciliation status
+  // Commission (admin-only) — scoped to JOB_COMPLETED
   const commissionEarned = completedLeads.filter((l: StatLead) => l.reconciliationBatchId != null).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
   const commissionPending = completedLeads.filter((l: StatLead) => l.reconciliationBatchId == null).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
 
@@ -158,11 +178,12 @@ export default async function DashboardPage({
     { label: 'Quotes Sent', value: String(quotesSent) },
     { label: 'Jobs Booked', value: String(jobsBooked) },
     { label: 'Jobs Completed', value: String(jobsCompleted) },
+    ...(isSubcontractor ? [{ label: 'Total Billed to Customers (ex GST)', value: `$${totalCustomerRevenue.toFixed(2)}` }] : []),
     ...(isSubcontractor ? [{ label: 'Total Jobs Revenue (ex GST)', value: `$${totalJobsRevenue.toFixed(2)}` }] : []),
-    ...(isAdmin || isClient ? [{ label: 'Total Customer Revenue (ex GST)', value: `$${totalCustomerRevenue.toFixed(2)}` }] : []),
-    ...(isAdmin || isClient ? [{ label: 'Campaign Revenue (ex GST)', value: `$${campaignRevenue.toFixed(2)}` }] : []),
-    ...(isAdmin ? [{ label: 'My Commission Earned (ex GST)', value: `$${commissionEarned.toFixed(2)}` }] : []),
-    ...(isAdmin ? [{ label: 'My Commission Pending (ex GST)', value: `$${commissionPending.toFixed(2)}` }] : []),
+    ...(isAdmin || isClient ? [{ label: 'Total Billed to Customers (ex GST)', value: `$${totalCustomerRevenue.toFixed(2)}` }] : []),
+    ...(isAdmin || isClient ? [{ label: 'Our Margin (ex GST)', value: `$${campaignRevenue.toFixed(2)}` }] : []),
+    ...(isAdmin ? [{ label: 'Commission Received (ex GST)', value: `$${commissionEarned.toFixed(2)}` }] : []),
+    ...(isAdmin ? [{ label: 'Commission Owed to Me (ex GST)', value: `$${commissionPending.toFixed(2)}` }] : []),
   ]
 
   const dateLabel = dateRange === 'all-time' ? 'All time'
@@ -189,16 +210,19 @@ export default async function DashboardPage({
         <StatCard label="Jobs Booked" value={jobsBooked} />
         <StatCard label="Jobs Completed" value={jobsCompleted} />
         {isSubcontractor && (
+          <StatCard label="Total Billed to Customers (ex GST)" value={`$${totalCustomerRevenue.toFixed(2)}`} />
+        )}
+        {isSubcontractor && (
           <StatCard label="Total Jobs Revenue (ex GST)" value={`$${totalJobsRevenue.toFixed(2)}`} />
         )}
         {(isAdmin || isClient) && (
-          <StatCard label="Total Customer Revenue (ex GST)" value={`$${totalCustomerRevenue.toFixed(2)}`} />
+          <StatCard label="Total Billed to Customers (ex GST)" value={`$${totalCustomerRevenue.toFixed(2)}`} />
         )}
         {(isAdmin || isClient) && (
-          <StatCard label="Campaign Revenue (ex GST)" value={`$${campaignRevenue.toFixed(2)}`} />
+          <StatCard label="Our Margin (ex GST)" value={`$${campaignRevenue.toFixed(2)}`} />
         )}
-        {isAdmin && <StatCard label="My Commission Earned (ex GST)" value={`$${commissionEarned.toFixed(2)}`} />}
-        {isAdmin && <StatCard label="My Commission Pending (ex GST)" value={`$${commissionPending.toFixed(2)}`} />}
+        {isAdmin && <StatCard label="Commission Received (ex GST)" value={`$${commissionEarned.toFixed(2)}`} />}
+        {isAdmin && <StatCard label="Commission Owed to Me (ex GST)" value={`$${commissionPending.toFixed(2)}`} />}
       </div>
 
       {/* Filters */}
@@ -217,13 +241,13 @@ export default async function DashboardPage({
         <EmptyState message="No leads yet. They'll appear here automatically after each call." />
       ) : (
         <>
-          <LeadsTable leads={leads} isAdmin={isAdmin} />
+          <LeadsTable leads={leads} isAdmin={isAdmin} role={role} />
 
           {/* Pagination */}
-          {total > pageSize && (
+          {displayTotal > pageSize && (
             <div className="px-4 py-3 flex items-center justify-between mt-2">
               <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">
-                Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+                Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, displayTotal)} of {displayTotal}
               </p>
               <div className="flex gap-2">
                 {page > 1 && (
@@ -234,7 +258,7 @@ export default async function DashboardPage({
                     ← Prev
                   </Link>
                 )}
-                {page * pageSize < total && (
+                {page * pageSize < displayTotal && (
                   <Link
                     href={`/dashboard?page=${page + 1}&search=${search}&status=${statusFilter}&campaignId=${campaignId ?? ''}&dateRange=${dateRange}&from=${fromParam}&to=${toParam}`}
                     className="px-3 py-1 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg hover:bg-[#F9FAFB] dark:hover:bg-[#0F172A]"

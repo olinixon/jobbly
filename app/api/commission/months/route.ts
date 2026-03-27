@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 
 export async function GET() {
   const session = await auth()
@@ -8,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const campaignId = session.user.campaignId
+  const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
   const where: Record<string, unknown> = { status: 'JOB_COMPLETED', jobCompletedAt: { not: null } }
   if (campaignId) where.campaignId = campaignId
 

@@ -98,6 +98,7 @@ export default function DashboardFilters({ campaignId, search, status, dateRange
       />
       <select value={localStatus} onChange={e => handleStatusChange(e.target.value)} className={selectCls}>
         <option value="">All Statuses</option>
+        <option value="NEEDS_ACTION">⚡ Needs Action</option>
         <option value="LEAD_RECEIVED">Lead Received</option>
         <option value="QUOTE_SENT">Quote Sent</option>
         <option value="JOB_BOOKED">Job Booked</option>

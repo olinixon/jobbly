@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -13,8 +14,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'monthKeys and label are required.' }, { status: 400 })
   }
 
-  const campaignId = session.user.campaignId
-  if (!campaignId) return NextResponse.json({ error: 'No campaign assigned.' }, { status: 400 })
+  const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
+  if (!campaignId) return NextResponse.json({ error: 'No campaign assigned. Please select a campaign first.' }, { status: 400 })
 
   // Find all JOB_COMPLETED leads in these months for this campaign
   const leads = await prisma.lead.findMany({

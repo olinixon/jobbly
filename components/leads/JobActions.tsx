@@ -247,9 +247,11 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
               Move to {STATUS_LABELS[nextStatus]}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => { closeInvoiceModal(); setShowInvoiceModal(true) }}>
-            {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
-          </Button>
+          {(currentStatus === 'JOB_BOOKED' || currentStatus === 'JOB_COMPLETED') && (
+            <Button variant="secondary" onClick={() => { closeInvoiceModal(); setShowInvoiceModal(true) }}>
+              {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
+            </Button>
+          )}
         </div>
         {previousStatus && (
           <div className="mt-4 pt-4 border-t border-[#F3F4F6] dark:border-[#334155]">

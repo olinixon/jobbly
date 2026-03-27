@@ -11,6 +11,7 @@ interface Job {
   propertyAddress: string
   status: string
   createdAt: Date
+  urgencyLevel?: 'HIGH' | 'MEDIUM' | null
 }
 
 export default function JobsTable({ jobs }: { jobs: Job[] }) {
@@ -36,7 +37,13 @@ export default function JobsTable({ jobs }: { jobs: Job[] }) {
                 onClick={() => router.push(`/jobs/${job.quoteNumber}`)}
                 className="border-b border-[#F3F4F6] dark:border-[#0F172A] hover:bg-[#F0F7FF] dark:hover:bg-[#1e3a5f]/30 transition-colors cursor-pointer"
               >
-                <td className="px-4 py-3 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">{job.quoteNumber}</td>
+                <td className="px-4 py-3 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">
+                  <div className="flex items-center gap-1.5">
+                    {job.urgencyLevel === 'HIGH' && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Urgent" />}
+                    {job.urgencyLevel === 'MEDIUM' && <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Needs attention" />}
+                    {job.quoteNumber}
+                  </div>
+                </td>
                 <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{job.customerName}</td>
                 <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] max-w-48 truncate">{job.propertyAddress}</td>
                 <td className="px-4 py-3"><Badge status={job.status} /></td>

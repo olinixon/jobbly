@@ -203,6 +203,23 @@ export default async function LeadDetailPage({
             </div>
           )}
 
+          {/* Financials (client only) */}
+          {isClient && lead.grossMarkup != null && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-4">Financials</h2>
+              <dl className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Your Margin <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
+                  <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.grossMarkup)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Your Margin <span className="text-xs text-[#9CA3AF]">(incl. GST)</span></dt>
+                  <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.grossMarkup * 1.15)}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
           {/* Invoice */}
           <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
             <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Invoice</h2>

@@ -8,6 +8,7 @@ import { useState } from 'react'
 interface SidebarProps {
   role: string
   userName: string
+  needsActionCount?: number
 }
 
 interface NavItem {
@@ -28,6 +29,7 @@ const adminNav: NavItem[] = [
 
 const clientNav: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: '📊' },
+  { label: 'Commission', href: '/commission', icon: '💰' },
 ]
 
 const subcontractorNav: NavItem[] = [
@@ -37,7 +39,7 @@ const subcontractorNav: NavItem[] = [
   { label: 'Audit Log', href: '/audit', icon: '📁' },
 ]
 
-export default function Sidebar({ role, userName }: SidebarProps) {
+export default function Sidebar({ role, userName, needsActionCount = 0 }: SidebarProps) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -99,11 +101,31 @@ export default function Sidebar({ role, userName }: SidebarProps) {
             )
           })}
 
+          {(role === 'ADMIN' || role === 'SUBCONTRACTOR') && (
+            <Link
+              href="/needs-action"
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors mt-2 border-t border-[#E5E7EB] dark:border-[#334155] pt-4 ${
+                pathname === '/needs-action'
+                  ? 'bg-[#EFF6FF] dark:bg-[#1e3a5f] text-[#2563EB] dark:text-[#3B82F6]'
+                  : 'text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#0F172A]'
+              }`}
+            >
+              <span>⚡</span>
+              <span className="flex-1">Needs Action</span>
+              {needsActionCount > 0 && (
+                <span className="min-w-5 h-5 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold">
+                  {needsActionCount > 99 ? '99+' : needsActionCount}
+                </span>
+              )}
+            </Link>
+          )}
+
           {role === 'ADMIN' && (
             <Link
               href="/campaigns"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#0F172A] mt-2 border-t border-[#E5E7EB] dark:border-[#334155] pt-4"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#0F172A]"
             >
               <span>🔀</span> Switch Campaign
             </Link>

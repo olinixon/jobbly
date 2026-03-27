@@ -34,12 +34,19 @@ export async function proxy(request: NextRequest) {
   const role = session.user.role
 
   // Role-based route protection
-  const adminOnly = ['/campaigns', '/commission', '/settings', '/users']
+  // /commission — admin + client (client sees margin summary, admin sees reconciliation)
+  const adminOnly = ['/campaigns', '/settings', '/users']
+  const adminOrClientCommission = ['/commission']
   const subcontractorOnly = ['/jobs']
   const adminOrClient = ['/leads']
+  const adminOrSub = ['/needs-action']
   // /dashboard, /notifications, /audit — all authenticated roles
 
   if (adminOnly.some((p) => pathname.startsWith(p)) && role !== 'ADMIN') {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  if (adminOrClientCommission.some((p) => pathname.startsWith(p)) && role !== 'ADMIN' && role !== 'CLIENT') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -55,7 +62,24 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/jobs', request.url))
   }
 
-  return NextResponse.next()
+  if (adminOrSub.some((p) => pathname.startsWith(p)) && role !== 'ADMIN' && role !== 'SUBCONTRACTOR') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Persist selected campaign ID to cookie for admin users
+  // When admin clicks "Enter Campaign", they land on /dashboard?campaignId=xxx
+  // This cookie makes the campaignId available to pages that don't have the URL param
+  const response = NextResponse.next()
+  const campaignIdParam = request.nextUrl.searchParams.get('campaignId')
+  if (campaignIdParam && role === 'ADMIN') {
+    response.cookies.set('jobbly_campaign_id', campaignIdParam, {
+      path: '/',
+      sameSite: 'lax',
+      httpOnly: true,
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    })
+  }
+  return response
 }
 
 export const config = {

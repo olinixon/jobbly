@@ -37,15 +37,15 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const [leads, total] = await Promise.all([
-    prisma.lead.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
+  // Two-tier sort at DB level: active leads first (oldest first), completed last (oldest first)
+  // Fetch two groups then combine — ensures correct pagination
+  const [activeLeads, completedLeads, total] = await Promise.all([
+    prisma.lead.findMany({ where: { ...where, status: { not: 'JOB_COMPLETED' } }, orderBy: { createdAt: 'asc' } }),
+    prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.count({ where }),
   ])
+  const allLeads = [...activeLeads, ...completedLeads]
+  const leads = allLeads.slice((page - 1) * pageSize, page * pageSize)
 
   return NextResponse.json({ leads, total, page, pageSize })
 }

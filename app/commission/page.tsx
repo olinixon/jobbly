@@ -5,12 +5,46 @@ import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import { StatCard } from '@/components/ui/Card'
 import CommissionPageClient from '@/components/commission/CommissionPageClient'
+import ClientCommissionPage from '@/components/commission/ClientCommissionPage'
+import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 
-export default async function CommissionPage() {
+export default async function CommissionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dateRange?: string; from?: string; to?: string }>
+}) {
   const session = await auth()
-  if (!session || session.user.role !== 'ADMIN') redirect('/login')
+  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'CLIENT')) redirect('/login')
 
-  const campaignId = session.user.campaignId
+  const role = session.user.role
+
+  // Client commission view — delegate entirely to dedicated component
+  if (role === 'CLIENT') {
+    const sp = await searchParams
+    const campaign = session.user.campaignId
+      ? await prisma.campaign.findUnique({
+          where: { id: session.user.campaignId },
+          select: { name: true, clientCompanyName: true, subcontractorCompanyName: true },
+        })
+      : null
+
+    return (
+      <AppShell>
+        <ClientCommissionPage
+          campaignId={session.user.campaignId ?? ''}
+          campaignName={campaign?.name ?? ''}
+          clientCompanyName={campaign?.clientCompanyName ?? ''}
+          subcontractorCompanyName={campaign?.subcontractorCompanyName ?? ''}
+          initialDateRange={sp.dateRange ?? 'all-time'}
+          initialFrom={sp.from ?? ''}
+          initialTo={sp.to ?? ''}
+        />
+      </AppShell>
+    )
+  }
+
+  // Admin commission view
+  const campaignId = await getActiveCampaignId(session.user.campaignId, role)
   const where: Record<string, unknown> = { status: 'JOB_COMPLETED' }
   if (campaignId) where.campaignId = campaignId
 
@@ -29,8 +63,8 @@ export default async function CommissionPage() {
       <PageHeader title="Commission" subtitle="Track and reconcile completed jobs by month" />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Commission Earned (ex GST)" value={`$${totalEarned.toFixed(2)}`} />
-        <StatCard label="Commission Pending (ex GST)" value={`$${totalPending.toFixed(2)}`} />
+        <StatCard label="Commission Received (ex GST)" value={`$${totalEarned.toFixed(2)}`} />
+        <StatCard label="Commission Owed to Me (ex GST)" value={`$${totalPending.toFixed(2)}`} />
         <StatCard label="Jobs Completed" value={totalCompleted} />
         <StatCard label="Avg Commission (ex GST)" value={`$${avgCommission.toFixed(2)}`} />
       </div>

@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
   if (session.user.role !== 'ADMIN' && lead.campaignId !== session.user.campaignId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+  if (lead.status !== 'JOB_BOOKED' && lead.status !== 'JOB_COMPLETED') {
+    return NextResponse.json({ error: 'Invoice can only be uploaded when the job is booked or completed.' }, { status: 400 })
+  }
 
   // Save file to disk
   const uploadDir = process.env.UPLOAD_DIR ?? './uploads'
