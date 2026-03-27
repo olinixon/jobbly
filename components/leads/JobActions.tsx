@@ -81,6 +81,7 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
   const [editMode, setEditMode] = useState(false)
   const [editValues, setEditValues] = useState({ customerPrice: '', contractorRate: '', grossMarkup: '', omnisideCommission: '', clientMargin: '' })
   const [confirming, setConfirming] = useState(false)
+  const [successMsg, setSuccessMsg] = useState('')
 
   const currentIdx = STATUS_ORDER.indexOf(currentStatus)
   const nextStatus = currentIdx < STATUS_ORDER.length - 1 ? STATUS_ORDER[currentIdx + 1] : null
@@ -211,6 +212,13 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
     })
     setConfirming(false)
     if (!res.ok) { const d = await res.json(); setFileError(d.error ?? 'Save failed.'); return }
+    const resData = await res.json()
+    if (resData.autoCompleted) {
+      setFileError('')
+      setSuccessMsg('Invoice uploaded and job marked as completed.')
+      setTimeout(() => { closeInvoiceModal(); router.refresh() }, 1500)
+      return
+    }
     closeInvoiceModal()
     router.refresh()
   }
@@ -220,6 +228,7 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
     setUploadStep('drop')
     setSelectedFile(null)
     setFileError('')
+    setSuccessMsg('')
     setParsedResult(null)
     setFallbackMsg('')
     setFallbackFileInfo(null)
@@ -306,6 +315,13 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
                   <option value={CURRENT_YEAR}>{CURRENT_YEAR}</option>
                   <option value={CURRENT_YEAR + 1}>{CURRENT_YEAR + 1}</option>
                 </select>
+                <button
+                  type="button"
+                  onClick={() => { const t = new Date(); setBookedDay(String(t.getDate())); setBookedMonth(String(t.getMonth() + 1)); setBookedYear(String(t.getFullYear())); setDateError('') }}
+                  className="px-3 py-2 text-xs font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
+                >
+                  Today
+                </button>
               </div>
               {dateError && <p className="mt-1 text-xs text-[#DC2626]">{dateError}</p>}
               {bookedDateFilled && !bookedDateValid && <p className="mt-1 text-xs text-[#DC2626]">Please select a valid date.</p>}
@@ -392,7 +408,7 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
                 <p className="text-xs font-semibold text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Extracted from invoice</p>
                 {editMode ? (
                   <div className="space-y-2">
-                    {([ ['customerPrice', 'Customer price (ex GST)'], ['contractorRate', 'Contractor rate'], ['grossMarkup', 'Gross markup'], ['omnisideCommission', 'Omniside commission'], ['clientMargin', 'Client margin'] ] as [keyof typeof editValues, string][]).map(([key, label]) => (
+                    {([ ['customerPrice', 'Customer price (ex GST)'], ['contractorRate', 'Contractor rate'], ['grossMarkup', 'Gross markup'] ] as [keyof typeof editValues, string][]).map(([key, label]) => (
                       <div key={key} className="flex items-center justify-between gap-3">
                         <span className="text-sm text-[#374151] dark:text-[#CBD5E1] w-40">{label}</span>
                         <input type="number" step="0.01" value={editValues[key]} onChange={(e) => setEditValues(v => ({ ...v, [key]: e.target.value }))} className="w-32 px-2 py-1 text-sm text-right border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
@@ -406,17 +422,16 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
                       <p className="text-xs font-semibold text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-1">Calculated</p>
                       <div className="flex justify-between text-sm"><span className="text-[#374151] dark:text-[#CBD5E1]">Contractor rate</span><span className="font-semibold">{fmt(parsedResult.contractorRate)}</span></div>
                       <div className="flex justify-between text-sm"><span className="text-[#374151] dark:text-[#CBD5E1]">Gross markup</span><span className="font-semibold">{fmt(parsedResult.grossMarkup)}</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-[#374151] dark:text-[#CBD5E1]">Omniside commission</span><span className="font-semibold">{fmt(parsedResult.omnisideCommission)}</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-[#374151] dark:text-[#CBD5E1]">Client margin</span><span className="font-semibold">{fmt(parsedResult.clientMargin)}</span></div>
                     </div>
-                    <p className="text-xs text-[#9CA3AF] dark:text-[#475569] pt-1">Based on {parsedResult.markupPercentage}% markup and {parsedResult.commissionPercentage}% commission from campaign settings.</p>
+                    <p className="text-xs text-[#9CA3AF] dark:text-[#475569] pt-1">Based on {parsedResult.markupPercentage}% markup from campaign settings.</p>
                   </div>
                 )}
               </div>
               {fileError && <p className="text-sm text-[#DC2626]">{fileError}</p>}
+              {successMsg && <p className="text-sm text-[#16A34A]">{successMsg}</p>}
               <div className="flex gap-3 justify-end">
                 <Button variant="secondary" onClick={() => setEditMode(!editMode)}>{editMode ? 'Show preview' : 'Edit manually'}</Button>
-                <Button onClick={confirmUpload} disabled={confirming}>{confirming ? 'Saving…' : 'Confirm & Close'}</Button>
+                <Button onClick={confirmUpload} disabled={confirming || !!successMsg}>{confirming ? 'Saving…' : 'Confirm & Close'}</Button>
               </div>
             </div>
           )}

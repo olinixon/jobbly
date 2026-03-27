@@ -328,6 +328,13 @@ export default function LeadActions({
                   <option value={CURRENT_YEAR}>{CURRENT_YEAR}</option>
                   <option value={CURRENT_YEAR + 1}>{CURRENT_YEAR + 1}</option>
                 </select>
+                <button
+                  type="button"
+                  onClick={() => { const t = new Date(); setBookedDay(String(t.getDate())); setBookedMonth(String(t.getMonth() + 1)); setBookedYear(String(t.getFullYear())); setDateError('') }}
+                  className="px-3 py-2 text-xs font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
+                >
+                  Today
+                </button>
               </div>
               {dateError && <p className="mt-1 text-xs text-[#DC2626]">{dateError}</p>}
               {bookedDateFilled && !bookedDateValid && <p className="mt-1 text-xs text-[#DC2626]">Please select a valid date.</p>}

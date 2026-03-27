@@ -42,9 +42,20 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  campaign    Campaign?    @relation(fields: [campaignId], references: [id])
-  auditLogs   AuditLog[]
-  attachments Attachment[]
+  campaign             Campaign?             @relation(fields: [campaignId], references: [id])
+  auditLogs            AuditLog[]
+  attachments          Attachment[]
+  passwordResetTokens  PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Lead {

@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import AppShell from '@/components/layout/AppShell'
 import Badge from '@/components/ui/Badge'
+import LeadStatusPipeline from '@/components/leads/LeadStatusPipeline'
 import JobActions from '@/components/leads/JobActions'
 import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
@@ -18,7 +19,10 @@ export default async function JobDetailPage({
   const { quoteNumber } = await params
   const job = await prisma.lead.findUnique({
     where: { quoteNumber },
-    include: { campaign: { select: { markupPercentage: true } } },
+    include: {
+      campaign: { select: { markupPercentage: true } },
+      auditLogs: { orderBy: { createdAt: 'desc' } },
+    },
   })
 
   if (!job) notFound()
@@ -35,6 +39,11 @@ export default async function JobDetailPage({
       <div className="flex items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-[#111827] dark:text-[#F1F5F9]">{job.quoteNumber}</h1>
         <Badge status={job.status} />
+      </div>
+
+      {/* Status pipeline */}
+      <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 mb-6 shadow-sm">
+        <LeadStatusPipeline status={job.status} jobBookedDate={job.jobBookedDate} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -86,20 +95,62 @@ export default async function JobDetailPage({
               </div>
               <div className="flex justify-between">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Received</dt>
-                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">
-                  {formatDateTime(job.createdAt)}
-                </dd>
+                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{formatDateTime(job.createdAt)}</dd>
               </div>
               {job.jobBookedDate && (
                 <div className="flex justify-between">
                   <dt className="text-[#6B7280] dark:text-[#94A3B8]">Booked Date</dt>
-                  <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">
-                    {formatDate(job.jobBookedDate)}
-                  </dd>
+                  <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{formatDate(job.jobBookedDate)}</dd>
                 </div>
               )}
             </dl>
           </div>
+
+          {/* Notes (read-only, hidden if empty) */}
+          {job.notes && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Notes</h2>
+              <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] whitespace-pre-wrap">{job.notes}</p>
+            </div>
+          )}
+
+          {/* Financials (subcontractor-restricted: no commission or margin) */}
+          {(job.contractorRate != null || job.customerPrice != null || job.grossMarkup != null) && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-4">Job Value</h2>
+              <dl className="space-y-3 text-sm">
+                {job.customerPrice != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-[#6B7280] dark:text-[#94A3B8]">Customer Price <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
+                    <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">${job.customerPrice.toFixed(2)}</dd>
+                  </div>
+                )}
+                {job.customerPrice != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-[#6B7280] dark:text-[#94A3B8]">Customer Price <span className="text-xs text-[#9CA3AF]">(incl. GST)</span></dt>
+                    <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">${(job.customerPrice * 1.15).toFixed(2)}</dd>
+                  </div>
+                )}
+                {job.contractorRate != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-[#6B7280] dark:text-[#94A3B8]">Contractor Rate <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
+                    <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">${job.contractorRate.toFixed(2)}</dd>
+                  </div>
+                )}
+                {job.grossMarkup != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-[#6B7280] dark:text-[#94A3B8]">Gross Markup <span className="text-xs text-[#9CA3AF]">(ex GST)</span></dt>
+                    <dd className="font-semibold text-[#111827] dark:text-[#F1F5F9]">${job.grossMarkup.toFixed(2)}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          {/* Activity log (collapsible, role-safe: shows role not name) */}
+          {job.auditLogs.length > 0 && (
+            <ActivityLog logs={job.auditLogs} />
+          )}
         </div>
 
         <div className="space-y-6">
@@ -113,5 +164,28 @@ export default async function JobDetailPage({
         </div>
       </div>
     </AppShell>
+  )
+}
+
+function ActivityLog({ logs }: { logs: { id: string; createdAt: Date; oldStatus: string; newStatus: string }[] }) {
+  return (
+    <details className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
+      <summary className="px-6 py-4 font-semibold text-[#111827] dark:text-[#F1F5F9] cursor-pointer select-none">
+        Show activity ({logs.length})
+      </summary>
+      <div className="px-6 pb-5 border-t border-[#F3F4F6] dark:border-[#334155] pt-4">
+        <ol className="space-y-3">
+          {logs.map((log) => (
+            <li key={log.id} className="text-sm">
+              <span className="text-[#6B7280] dark:text-[#94A3B8]">{formatDateTime(log.createdAt)}</span>
+              {' · '}
+              <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">Jobbly</span>
+              {' moved to '}
+              <Badge status={log.newStatus} />
+            </li>
+          ))}
+        </ol>
+      </div>
+    </details>
   )
 }

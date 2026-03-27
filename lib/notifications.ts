@@ -101,6 +101,32 @@ export async function sendNewLeadEmail(params: NewLeadEmailParams) {
   })
 }
 
+// ─── Password Reset Email ─────────────────────────────────────────────────────
+
+interface PasswordResetEmailParams {
+  to: string
+  name: string
+  resetUrl: string
+}
+
+export async function sendPasswordResetEmail(params: PasswordResetEmailParams) {
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">Reset your password</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Hi ${params.name}, we received a request to reset your Jobbly password. Click the button below to choose a new one.</p>
+      <div style="margin-bottom:24px;">${primaryButton(params.resetUrl, 'Reset Password')}</div>
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: 'Reset your Jobbly password',
+    html,
+  })
+}
+
 // ─── Job Completed Email ─────────────────────────────────────────────────────
 
 interface JobCompletedEmailParams {

@@ -61,7 +61,9 @@ export default function CommissionPageClient() {
   const [showUnreconcileModal, setShowUnreconcileModal] = useState<BatchData | null>(null)
   const [invoiceData, setInvoiceData] = useState<InvoiceBatch | null>(null)
   const [reconciling, setReconciling] = useState(false)
+  const [reconcileError, setReconcileError] = useState('')
   const [unreconciling, setUnreconciling] = useState(false)
+  const [unreconcileError, setUnreconcileError] = useState('')
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -151,6 +153,7 @@ export default function CommissionPageClient() {
 
   async function reconcile() {
     setReconciling(true)
+    setReconcileError('')
     const monthKeys = selectedMonths.map(m => m.monthKey)
     const res = await fetch('/api/commission/reconcile', {
       method: 'POST',
@@ -158,23 +161,32 @@ export default function CommissionPageClient() {
       body: JSON.stringify({ monthKeys, label: selectedLabel }),
     })
     setReconciling(false)
-    if (res.ok) {
-      setSelected(new Set())
-      setShowReconcileModal(false)
-      setShowInvoiceModal(false)
-      router.refresh()
-      loadData()
+    if (!res.ok) {
+      const d = await res.json()
+      setReconcileError(d.error ?? 'Reconciliation failed. Please try again.')
+      return
     }
+    setSelected(new Set())
+    setShowReconcileModal(false)
+    setShowInvoiceModal(false)
+    router.refresh()
+    loadData()
   }
 
   async function unreconcileBatch(batchId: string) {
     setUnreconciling(true)
-    await fetch('/api/commission/unreconcile', {
+    setUnreconcileError('')
+    const res = await fetch('/api/commission/unreconcile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ batchId }),
     })
     setUnreconciling(false)
+    if (!res.ok) {
+      const d = await res.json()
+      setUnreconcileError(d.error ?? 'Unreconcile failed. Please try again.')
+      return
+    }
     setShowUnreconcileModal(null)
     router.refresh()
     loadData()
@@ -374,12 +386,13 @@ export default function CommissionPageClient() {
 
       {/* Reconcile confirmation modal */}
       {showReconcileModal && (
-        <Modal title={`Reconcile ${selectedLabel}?`} onClose={() => setShowReconcileModal(false)}>
+        <Modal title={`Reconcile ${selectedLabel}?`} onClose={() => { setShowReconcileModal(false); setReconcileError('') }}>
           <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-6">
             This will mark <strong>{totalSelectedJobs} jobs</strong> as reconciled with a total commission of <strong>{fmt(totalSelectedCommission)}</strong>. This action can be undone from the Reconciled Batches tab.
           </p>
+          {reconcileError && <p className="text-sm text-[#DC2626] mb-4">{reconcileError}</p>}
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setShowReconcileModal(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { setShowReconcileModal(false); setReconcileError('') }}>Cancel</Button>
             <Button onClick={reconcile} disabled={reconciling}>
               {reconciling ? 'Reconciling…' : 'Confirm Reconciliation'}
             </Button>
@@ -389,12 +402,13 @@ export default function CommissionPageClient() {
 
       {/* Unreconcile confirmation modal */}
       {showUnreconcileModal && (
-        <Modal title="Unreconcile this batch?" onClose={() => setShowUnreconcileModal(null)}>
+        <Modal title="Unreconcile this batch?" onClose={() => { setShowUnreconcileModal(null); setUnreconcileError('') }}>
           <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-6">
             This will remove the reconciliation status from <strong>{showUnreconcileModal.totalJobs} jobs</strong> in <strong>{showUnreconcileModal.label}</strong>. They will return to the unreconciled pool.
           </p>
+          {unreconcileError && <p className="text-sm text-[#DC2626] mb-4">{unreconcileError}</p>}
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setShowUnreconcileModal(null)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { setShowUnreconcileModal(null); setUnreconcileError('') }}>Cancel</Button>
             <Button variant="danger" onClick={() => unreconcileBatch(showUnreconcileModal.id)} disabled={unreconciling}>
               {unreconciling ? 'Unreconciling…' : 'Unreconcile'}
             </Button>

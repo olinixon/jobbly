@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { auth } from './auth'
+import NextAuth from 'next-auth'
+import { authConfig } from './auth.config'
 
-const PUBLIC_PATHS = ['/login', '/api/auth', '/api/webhooks']
+// Edge-safe auth instance — no Prisma, reads JWT only
+const { auth } = NextAuth(authConfig)
+
+const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password', '/api/auth', '/api/webhooks']
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -30,9 +34,10 @@ export async function proxy(request: NextRequest) {
   const role = session.user.role
 
   // Role-based route protection
-  const adminOnly = ['/campaigns', '/commission', '/audit', '/notifications', '/settings', '/users']
+  const adminOnly = ['/campaigns', '/commission', '/settings', '/users']
   const subcontractorOnly = ['/jobs']
-  const adminOrClient = ['/dashboard', '/leads']
+  const adminOrClient = ['/leads']
+  // /dashboard, /notifications, /audit — all authenticated roles
 
   if (adminOnly.some((p) => pathname.startsWith(p)) && role !== 'ADMIN') {
     return NextResponse.redirect(new URL('/login', request.url))

@@ -33,6 +33,7 @@ export default async function LeadDetailPage({
   }
 
   const isAdmin = session.user.role === 'ADMIN'
+  const isClient = session.user.role === 'CLIENT'
   const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
 
   return (
@@ -127,13 +128,19 @@ export default async function LeadDetailPage({
             </dl>
           </div>
 
-          {/* Notes (admin only) */}
+          {/* Notes */}
           {isAdmin && (
             <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
               <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Notes</h2>
               <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] whitespace-pre-wrap min-h-12">
                 {lead.notes ?? 'No notes yet.'}
               </p>
+            </div>
+          )}
+          {isClient && lead.notes && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Notes</h2>
+              <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] whitespace-pre-wrap">{lead.notes}</p>
             </div>
           )}
         </div>
@@ -224,32 +231,54 @@ export default async function LeadDetailPage({
             )}
           </div>
 
-          {/* Audit log */}
-          <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
-            <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Activity</h2>
-            {lead.auditLogs.length === 0 ? (
-              <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">No status changes yet.</p>
-            ) : (
-              <ol className="space-y-3">
-                {lead.auditLogs.map((log) => (
-                  <li key={log.id} className="text-sm">
-                    <span className="text-[#6B7280] dark:text-[#94A3B8]">
-                      {formatDateTime(log.createdAt)}
-                    </span>
-                    {' · '}
-                    <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">{log.changedByName}</span>
-                    {' moved to '}
-                    <Badge status={log.newStatus} />
-                    {log.newStatus === 'JOB_BOOKED' && lead.jobBookedDate && (
-                      <span className="ml-1 text-[#6B7280] dark:text-[#94A3B8]">
-                        — Booked: {formatDate(lead.jobBookedDate)}
+          {/* Audit log — admin sees inline with names; client sees collapsible with "Jobbly" */}
+          {isAdmin && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Activity</h2>
+              {lead.auditLogs.length === 0 ? (
+                <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">No status changes yet.</p>
+              ) : (
+                <ol className="space-y-3">
+                  {lead.auditLogs.map((log) => (
+                    <li key={log.id} className="text-sm">
+                      <span className="text-[#6B7280] dark:text-[#94A3B8]">
+                        {formatDateTime(log.createdAt)}
                       </span>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
+                      {' · '}
+                      <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">{log.changedByName}</span>
+                      {' moved to '}
+                      <Badge status={log.newStatus} />
+                      {log.newStatus === 'JOB_BOOKED' && lead.jobBookedDate && (
+                        <span className="ml-1 text-[#6B7280] dark:text-[#94A3B8]">
+                          — Booked: {formatDate(lead.jobBookedDate)}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+          {isClient && lead.auditLogs.length > 0 && (
+            <details className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
+              <summary className="px-6 py-4 font-semibold text-[#111827] dark:text-[#F1F5F9] cursor-pointer select-none">
+                Show activity ({lead.auditLogs.length})
+              </summary>
+              <div className="px-6 pb-5 border-t border-[#F3F4F6] dark:border-[#334155] pt-4">
+                <ol className="space-y-3">
+                  {lead.auditLogs.map((log) => (
+                    <li key={log.id} className="text-sm">
+                      <span className="text-[#6B7280] dark:text-[#94A3B8]">{formatDateTime(log.createdAt)}</span>
+                      {' · '}
+                      <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">Jobbly</span>
+                      {' moved to '}
+                      <Badge status={log.newStatus} />
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </details>
+          )}
         </div>
       </div>
     </AppShell>

@@ -35,21 +35,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  await prisma.$transaction([
-    prisma.lead.update({
-      where: { id: lead.id },
-      data: {
-        invoiceUrl: fileUrl,
-        invoiceUploadedAt: new Date(),
-        invoiceUploadedById: session.user.id,
-        contractorRate,
-        customerPrice,
-        grossMarkup,
-        omnisideCommission,
-        clientMargin,
-      },
-    }),
-    prisma.attachment.create({
+  // Auto-advance to JOB_COMPLETED when a SUBCONTRACTOR uploads an invoice on a JOB_BOOKED lead
+  const shouldAutoComplete = session.user.role === 'SUBCONTRACTOR' && lead.status === 'JOB_BOOKED'
+
+  const invoiceData = {
+    invoiceUrl: fileUrl,
+    invoiceUploadedAt: new Date(),
+    invoiceUploadedById: session.user.id,
+    contractorRate,
+    customerPrice,
+    grossMarkup,
+    omnisideCommission,
+    clientMargin,
+    ...(shouldAutoComplete ? { status: 'JOB_COMPLETED' as const, jobCompletedAt: new Date() } : {}),
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.lead.update({ where: { id: lead.id }, data: invoiceData })
+    await tx.attachment.create({
       data: {
         leadId: lead.id,
         campaignId: lead.campaignId,
@@ -60,31 +63,51 @@ export async function POST(request: NextRequest) {
         fileSizeBytes: fileSizeBytes ?? 0,
         attachmentType: 'INVOICE',
       },
-    }),
-  ])
+    })
+    if (shouldAutoComplete) {
+      await tx.auditLog.create({
+        data: {
+          leadId: lead.id,
+          campaignId: lead.campaignId,
+          changedByUserId: session.user.id,
+          changedByName: session.user.name,
+          oldStatus: 'JOB_BOOKED',
+          newStatus: 'JOB_COMPLETED',
+        },
+      })
+    }
+  })
 
   // Fire job completed email to eligible admins (fire and forget)
-  ;(async () => {
-    try {
-      const admins = await prisma.user.findMany({
-        where: { campaignId: lead.campaignId, role: 'ADMIN', isActive: true, notifyJobCompleted: true },
-        select: { email: true },
-      })
-      if (admins.length > 0) {
-        await sendJobCompletedEmail({
-          to: admins.map(a => a.email),
-          quoteNumber: lead.quoteNumber,
-          customerName: lead.customerName,
-          propertyAddress: lead.propertyAddress,
-          contractorRate,
-          customerPrice,
-          omnisideCommission,
+  if (shouldAutoComplete || session.user.role === 'ADMIN') {
+    ;(async () => {
+      try {
+        const admins = await prisma.user.findMany({
+          where: { campaignId: lead.campaignId, role: 'ADMIN', isActive: true, notifyJobCompleted: true },
+          select: { email: true },
         })
+        if (admins.length > 0) {
+          await sendJobCompletedEmail({
+            to: admins.map(a => a.email),
+            quoteNumber: lead.quoteNumber,
+            customerName: lead.customerName,
+            propertyAddress: lead.propertyAddress,
+            contractorRate,
+            customerPrice,
+            omnisideCommission,
+          })
+        }
+      } catch (err) {
+        console.error('Job completed email failed:', err)
       }
-    } catch (err) {
-      console.error('Job completed email failed:', err)
-    }
-  })()
+    })()
+  }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({
+    success: true,
+    autoCompleted: shouldAutoComplete,
+    message: shouldAutoComplete
+      ? 'Invoice uploaded and job marked as completed.'
+      : 'Invoice uploaded successfully.',
+  })
 }

@@ -41,6 +41,7 @@ export default function SettingsForm({ campaign }: { campaign: Campaign }) {
   const [status, setStatus] = useState(campaign.status)
   const [showDeactivateModal, setShowDeactivateModal] = useState(false)
   const [deactivating, setDeactivating] = useState(false)
+  const [showCommissionWarning, setShowCommissionWarning] = useState(false)
 
   async function deactivateCampaign() {
     setDeactivating(true)
@@ -70,6 +71,19 @@ export default function SettingsForm({ campaign }: { campaign: Campaign }) {
 
   return (
     <>
+    {showCommissionWarning && (
+      <Modal title="Update commission settings?" onClose={() => setShowCommissionWarning(false)}>
+        <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-6">
+          This will affect all <strong>future leads</strong>. Existing leads will not be changed.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button variant="secondary" onClick={() => setShowCommissionWarning(false)}>Cancel</Button>
+          <Button onClick={() => { setShowCommissionWarning(false); save('commission', commission) }} disabled={saving === 'commission'}>
+            Confirm Update
+          </Button>
+        </div>
+      </Modal>
+    )}
     {showDeactivateModal && (
       <Modal title="Deactivate Campaign?" onClose={() => setShowDeactivateModal(false)}>
         <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-4">
@@ -133,7 +147,7 @@ export default function SettingsForm({ campaign }: { campaign: Campaign }) {
         </div>
         {success === 'commission' && <p className="mt-3 text-sm text-[#16A34A]">Saved.</p>}
         <div className="mt-5">
-          <Button onClick={() => save('commission', commission)} disabled={saving === 'commission'}>
+          <Button onClick={() => setShowCommissionWarning(true)} disabled={saving === 'commission'}>
             {saving === 'commission' ? 'Saving…' : 'Save Commission'}
           </Button>
         </div>

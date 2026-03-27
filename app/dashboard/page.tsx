@@ -7,6 +7,7 @@ import { StatCard } from '@/components/ui/Card'
 import EmptyState from '@/components/ui/EmptyState'
 import LeadsTable from '@/components/leads/LeadsTable'
 import DashboardFilters from '@/components/dashboard/DashboardFilters'
+import DashboardExportButton from '@/components/dashboard/DashboardExportButton'
 import Link from 'next/link'
 
 interface SearchParams {
@@ -69,8 +70,11 @@ export default async function DashboardPage({
   const session = await auth()
   if (!session) redirect('/login')
 
+  // All three roles can access dashboard
+  const role = session.user.role
+
   const sp = await searchParams
-  const campaignId = session.user.role === 'ADMIN'
+  const campaignId = role === 'ADMIN'
     ? (sp.campaignId ?? session.user.campaignId)
     : session.user.campaignId
 
@@ -113,6 +117,8 @@ export default async function DashboardPage({
       select: {
         status: true,
         customerPrice: true,
+        contractorRate: true,
+        grossMarkup: true,
         omnisideCommission: true,
         reconciliationBatchId: true,
       },
@@ -122,6 +128,8 @@ export default async function DashboardPage({
   type StatLead = {
     status: string
     customerPrice: number | null
+    contractorRate: number | null
+    grossMarkup: number | null
     omnisideCommission: number | null
     reconciliationBatchId: string | null
   }
@@ -131,14 +139,48 @@ export default async function DashboardPage({
   const jobsBooked = stats.filter((l: StatLead) => ['JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
   const jobsCompleted = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED').length
   const completedLeads = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED')
-  const totalRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.customerPrice ?? 0), 0)
+
+  // Revenue stats
+  const totalCustomerRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.customerPrice ?? 0), 0)
+  const campaignRevenue = stats.filter((l: StatLead) => l.grossMarkup != null).reduce((s: number, l: StatLead) => s + (l.grossMarkup ?? 0), 0)
+  const totalJobsRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.contractorRate ?? 0), 0)
+
+  // Commission (admin-only) — always show regardless of reconciliation status
   const commissionEarned = completedLeads.filter((l: StatLead) => l.reconciliationBatchId != null).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
   const commissionPending = completedLeads.filter((l: StatLead) => l.reconciliationBatchId == null).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
-  const isAdmin = session.user.role === 'ADMIN'
+
+  const isAdmin = role === 'ADMIN'
+  const isClient = role === 'CLIENT'
+  const isSubcontractor = role === 'SUBCONTRACTOR'
+
+  const exportStats = [
+    { label: 'Total Leads', value: String(totalLeads) },
+    { label: 'Quotes Sent', value: String(quotesSent) },
+    { label: 'Jobs Booked', value: String(jobsBooked) },
+    { label: 'Jobs Completed', value: String(jobsCompleted) },
+    ...(isSubcontractor ? [{ label: 'Total Jobs Revenue (ex GST)', value: `$${totalJobsRevenue.toFixed(2)}` }] : []),
+    ...(isAdmin || isClient ? [{ label: 'Total Customer Revenue (ex GST)', value: `$${totalCustomerRevenue.toFixed(2)}` }] : []),
+    ...(isAdmin || isClient ? [{ label: 'Campaign Revenue (ex GST)', value: `$${campaignRevenue.toFixed(2)}` }] : []),
+    ...(isAdmin ? [{ label: 'My Commission Earned (ex GST)', value: `$${commissionEarned.toFixed(2)}` }] : []),
+    ...(isAdmin ? [{ label: 'My Commission Pending (ex GST)', value: `$${commissionPending.toFixed(2)}` }] : []),
+  ]
+
+  const dateLabel = dateRange === 'all-time' ? 'All time'
+    : dateRange === 'today' ? 'Today'
+    : dateRange === 'last7' ? 'Last 7 days'
+    : dateRange === 'mtd' ? 'Month to date'
+    : dateRange === 'last-month' ? 'Last month'
+    : dateRange === 'last-quarter' ? 'Last quarter'
+    : dateRange === 'custom' && fromParam && toParam ? `${fromParam} – ${toParam}`
+    : 'Custom range'
 
   return (
     <AppShell>
-      <PageHeader title="Dashboard" subtitle="All leads for this campaign" />
+      <PageHeader
+        title="Dashboard"
+        subtitle="Campaign overview"
+        action={<DashboardExportButton stats={exportStats} dateLabel={dateLabel} />}
+      />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
@@ -146,12 +188,21 @@ export default async function DashboardPage({
         <StatCard label="Quotes Sent" value={quotesSent} />
         <StatCard label="Jobs Booked" value={jobsBooked} />
         <StatCard label="Jobs Completed" value={jobsCompleted} />
-        <StatCard label="Total Revenue (ex GST)" value={`$${totalRevenue.toFixed(2)}`} />
-        {isAdmin && <StatCard label="Commission Earned (ex GST)" value={`$${commissionEarned.toFixed(2)}`} />}
-        {isAdmin && <StatCard label="Commission Pending (ex GST)" value={`$${commissionPending.toFixed(2)}`} />}
+        {isSubcontractor && (
+          <StatCard label="Total Jobs Revenue (ex GST)" value={`$${totalJobsRevenue.toFixed(2)}`} />
+        )}
+        {(isAdmin || isClient) && (
+          <StatCard label="Total Customer Revenue (ex GST)" value={`$${totalCustomerRevenue.toFixed(2)}`} />
+        )}
+        {(isAdmin || isClient) && (
+          <StatCard label="Campaign Revenue (ex GST)" value={`$${campaignRevenue.toFixed(2)}`} />
+        )}
+        {isAdmin && <StatCard label="My Commission Earned (ex GST)" value={`$${commissionEarned.toFixed(2)}`} />}
+        {isAdmin && <StatCard label="My Commission Pending (ex GST)" value={`$${commissionPending.toFixed(2)}`} />}
       </div>
 
       {/* Filters */}
+      <div className="no-print">
       <DashboardFilters
         campaignId={campaignId ?? ''}
         search={search}
@@ -196,6 +247,7 @@ export default async function DashboardPage({
           )}
         </>
       )}
+      </div>
     </AppShell>
   )
 }
