@@ -55,10 +55,6 @@ export default async function JobDetailPage({
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Name</dt>
                 <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{job.customerName}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Phone</dt>
-                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{job.customerPhone}</dd>
-              </div>
               <div className="flex justify-between items-start gap-4">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8] shrink-0">Address</dt>
                 <dd className="font-medium text-[#111827] dark:text-[#F1F5F9] text-right">{job.propertyAddress}</dd>

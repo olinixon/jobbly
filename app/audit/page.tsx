@@ -14,11 +14,12 @@ export default async function AuditPage({
   searchParams: Promise<{ search?: string; from?: string; to?: string }>
 }) {
   const session = await auth()
-  if (!session || session.user.role !== 'ADMIN') redirect('/login')
+  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUBCONTRACTOR')) redirect('/login')
 
   const sp = await searchParams
   const search = sp.search ?? ''
   const campaignId = session.user.campaignId
+  const isAdmin = session.user.role === 'ADMIN'
 
   const where: Record<string, unknown> = {}
   if (campaignId) where.campaignId = campaignId
@@ -78,7 +79,7 @@ export default async function AuditPage({
                       {formatDateTime(log.createdAt)}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs">
-                      <Link href={`/leads/${log.lead.quoteNumber}`} className="text-[#2563EB] dark:text-[#3B82F6] hover:underline">
+                      <Link href={isAdmin ? `/leads/${log.lead.quoteNumber}` : `/jobs/${log.lead.quoteNumber}`} className="text-[#2563EB] dark:text-[#3B82F6] hover:underline">
                         {log.lead.quoteNumber}
                       </Link>
                     </td>

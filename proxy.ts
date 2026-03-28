@@ -39,7 +39,7 @@ export async function proxy(request: NextRequest) {
   const adminOrClientCommission = ['/commission']
   const subcontractorOnly = ['/jobs']
   const adminOrClient = ['/leads']
-  const adminOrSub = ['/needs-action']
+  const adminOrSub = ['/needs-action', '/completed-jobs']
   // /dashboard, /notifications, /audit — all authenticated roles
 
   if (adminOnly.some((p) => pathname.startsWith(p)) && role !== 'ADMIN') {

@@ -10,6 +10,8 @@ interface DashboardFiltersProps {
   dateRange: string
   from: string
   to: string
+  needsActionCount?: number
+  showNeedsAction?: boolean
 }
 
 const DATE_RANGE_OPTIONS = [
@@ -22,13 +24,17 @@ const DATE_RANGE_OPTIONS = [
   { value: 'custom', label: 'Custom range' },
 ]
 
-export default function DashboardFilters({ campaignId, search, status, dateRange, from, to }: DashboardFiltersProps) {
+export default function DashboardFilters({
+  campaignId, search, status, dateRange, from, to,
+  needsActionCount = 0, showNeedsAction = false,
+}: DashboardFiltersProps) {
   const router = useRouter()
   const [localSearch, setLocalSearch] = useState(search)
-  const [localStatus, setLocalStatus] = useState(status)
+  const [localStatus, setLocalStatus] = useState(status === 'NEEDS_ACTION' ? '' : status)
   const [localRange, setLocalRange] = useState(dateRange)
   const [localFrom, setLocalFrom] = useState(from)
   const [localTo, setLocalTo] = useState(to)
+  const needsActionActive = status === 'NEEDS_ACTION'
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isFirstRender = useRef(true)
 
@@ -48,7 +54,17 @@ export default function DashboardFilters({ campaignId, search, status, dateRange
     return `/dashboard?${params.toString()}`
   }
 
-  // Auto-apply status and date range immediately on change
+  function handleNeedsActionClick() {
+    if (needsActionActive) {
+      // Deactivate — return to all leads
+      router.push(buildUrl({ status: '' }))
+    } else {
+      // Activate — clear status dropdown and set NEEDS_ACTION
+      setLocalStatus('')
+      router.push(buildUrl({ status: 'NEEDS_ACTION' }))
+    }
+  }
+
   function handleStatusChange(val: string) {
     setLocalStatus(val)
     router.push(buildUrl({ status: val }))
@@ -56,7 +72,6 @@ export default function DashboardFilters({ campaignId, search, status, dateRange
 
   function handleRangeChange(val: string) {
     setLocalRange(val)
-    // Don't navigate yet if switching to custom — wait for both dates
     if (val !== 'custom') {
       router.push(buildUrl({ range: val, from: '', to: '' }))
     }
@@ -89,16 +104,27 @@ export default function DashboardFilters({ campaignId, search, status, dateRange
   const selectCls = "px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
 
   return (
-    <div className="flex flex-wrap gap-3 mb-4">
+    <div className="flex flex-wrap gap-3 mb-4 items-center">
       <input
         value={localSearch}
         onChange={e => setLocalSearch(e.target.value)}
         placeholder="Search by quote, name, or address…"
         className="flex-1 min-w-48 px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
       />
+      {showNeedsAction && (
+        <button
+          onClick={handleNeedsActionClick}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors whitespace-nowrap ${
+            needsActionActive
+              ? 'bg-amber-500 border-amber-500 text-white'
+              : 'border-amber-400 text-amber-600 dark:text-amber-400 bg-white dark:bg-[#0F172A] hover:bg-amber-50 dark:hover:bg-amber-950/20'
+          }`}
+        >
+          ⚡ Needs Action{needsActionCount > 0 && ` (${needsActionCount})`}
+        </button>
+      )}
       <select value={localStatus} onChange={e => handleStatusChange(e.target.value)} className={selectCls}>
         <option value="">All Statuses</option>
-        <option value="NEEDS_ACTION">⚡ Needs Action</option>
         <option value="LEAD_RECEIVED">Lead Received</option>
         <option value="QUOTE_SENT">Quote Sent</option>
         <option value="JOB_BOOKED">Job Booked</option>

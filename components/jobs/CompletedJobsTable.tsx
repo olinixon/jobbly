@@ -1,20 +1,19 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import Badge from '@/components/ui/Badge'
-import { formatDateTime } from '@/lib/formatDate'
+import { formatDate } from '@/lib/formatDate'
 
-interface Job {
+interface CompletedJob {
   id: string
   quoteNumber: string
   customerName: string
   propertyAddress: string
-  status: string
-  createdAt: Date
-  urgencyLevel?: 'HIGH' | 'MEDIUM' | null
+  jobCompletedAt: Date | null
+  contractorRate: number | null
+  invoiceUrl: string | null
 }
 
-export default function JobsTable({ jobs }: { jobs: Job[] }) {
+export default function CompletedJobsTable({ jobs }: { jobs: CompletedJob[] }) {
   const router = useRouter()
 
   return (
@@ -26,8 +25,9 @@ export default function JobsTable({ jobs }: { jobs: Job[] }) {
               <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Quote #</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Customer</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Address</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Date</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Date Completed</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide">Contractor Rate (ex GST)</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -37,19 +37,25 @@ export default function JobsTable({ jobs }: { jobs: Job[] }) {
                 onClick={() => router.push(`/jobs/${job.quoteNumber}`)}
                 className="border-b border-[#F3F4F6] dark:border-[#0F172A] hover:bg-[#F0F7FF] dark:hover:bg-[#1e3a5f]/30 transition-colors cursor-pointer"
               >
-                <td className="px-4 py-3 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">
-                  <div className="flex items-center gap-1.5">
-                    {job.urgencyLevel === 'HIGH' && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Urgent" />}
-                    {job.urgencyLevel === 'MEDIUM' && <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Needs attention" />}
-                    {job.status === 'LEAD_RECEIVED' && !job.urgencyLevel && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="New lead" />}
-                    {job.quoteNumber}
-                  </div>
-                </td>
+                <td className="px-4 py-3 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">{job.quoteNumber}</td>
                 <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{job.customerName}</td>
                 <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] max-w-48 truncate">{job.propertyAddress}</td>
-                <td className="px-4 py-3"><Badge status={job.status} /></td>
                 <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] whitespace-nowrap">
-                  {formatDateTime(job.createdAt)}
+                  {job.jobCompletedAt ? formatDate(job.jobCompletedAt) : '—'}
+                </td>
+                <td className="px-4 py-3 text-right font-semibold text-[#111827] dark:text-[#F1F5F9]">
+                  {job.contractorRate != null ? `$${job.contractorRate.toFixed(2)}` : '—'}
+                </td>
+                <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  {job.invoiceUrl && (
+                    <a
+                      href={job.invoiceUrl}
+                      download
+                      className="text-sm text-[#2563EB] dark:text-[#3B82F6] hover:underline"
+                    >
+                      Invoice
+                    </a>
+                  )}
                 </td>
               </tr>
             ))}

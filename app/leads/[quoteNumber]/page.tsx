@@ -10,11 +10,16 @@ import { formatDateTime, formatDate } from '@/lib/formatDate'
 
 export default async function LeadDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ quoteNumber: string }>
+  searchParams: Promise<{ from?: string }>
 }) {
   const session = await auth()
   if (!session) redirect('/login')
+
+  const sp = await searchParams
+  const fromCommission = sp.from === 'commission'
 
   const { quoteNumber } = await params
   const lead = await prisma.lead.findUnique({
@@ -40,10 +45,10 @@ export default async function LeadDetailPage({
     <AppShell>
       <div className="mb-6">
         <Link
-          href="/dashboard"
+          href={fromCommission ? '/commission' : '/dashboard'}
           className="text-sm text-[#6B7280] dark:text-[#94A3B8] hover:text-[#2563EB] dark:hover:text-[#3B82F6] transition-colors"
         >
-          ← Leads
+          {fromCommission ? '← Back to Commission' : '← Leads'}
         </Link>
       </div>
 

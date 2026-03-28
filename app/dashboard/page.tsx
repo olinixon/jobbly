@@ -103,19 +103,35 @@ export default async function DashboardPage({
     ]
   }
 
-  const statsWhere: Record<string, unknown> = {}
-  if (campaignId) statsWhere.campaignId = campaignId
-  if (dateFilter) statsWhere.createdAt = dateFilter
+  // Count stats filter by createdAt (when leads arrived)
+  const countStatsWhere: Record<string, unknown> = {}
+  if (campaignId) countStatsWhere.campaignId = campaignId
+  if (dateFilter) countStatsWhere.createdAt = dateFilter
+
+  // Financial stats filter by jobCompletedAt — must match commission page
+  const financialStatsWhere: Record<string, unknown> = {
+    campaignId: campaignId ?? undefined,
+    status: 'JOB_COMPLETED',
+    jobCompletedAt: { not: null, ...(dateFilter ?? {}) },
+  }
+  if (!campaignId) delete financialStatsWhere.campaignId
+
+  // Needs-action count for standalone button (unfiltered — matches sidebar badge)
+  const needsActionBaseWhere: Record<string, unknown> = { status: { not: 'JOB_COMPLETED' } }
+  if (campaignId) needsActionBaseWhere.campaignId = campaignId
 
   // Two-tier sort: active leads first (oldest first), completed last (oldest first)
-  const [activeLeadsRaw, completedLeadsRaw, total, stats] = await Promise.all([
+  const [activeLeadsRaw, completedLeadsRaw, total, countStats, financialStats, needsActionLeads] = await Promise.all([
     prisma.lead.findMany({ where: { ...where, status: { not: 'JOB_COMPLETED' } }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.count({ where }),
     prisma.lead.findMany({
-      where: statsWhere,
+      where: countStatsWhere,
+      select: { status: true },
+    }),
+    prisma.lead.findMany({
+      where: financialStatsWhere,
       select: {
-        status: true,
         customerPrice: true,
         contractorRate: true,
         grossMarkup: true,
@@ -123,7 +139,14 @@ export default async function DashboardPage({
         reconciliationBatchId: true,
       },
     }),
+    prisma.lead.findMany({
+      where: needsActionBaseWhere,
+      select: { status: true, createdAt: true, jobBookedDate: true },
+    }),
   ])
+  // Keep stats as alias for countStats for backward compat below
+  const stats = countStats
+  const needsActionCount = needsActionLeads.filter(l => computeUrgency(l) !== null).length
 
   const withUrgency = activeLeadsRaw.map(l => ({ ...l, urgencyLevel: computeUrgency(l) }))
 
@@ -145,8 +168,8 @@ export default async function DashboardPage({
   const displayTotal = isNeedsActionFilter ? allLeads.length : total
   const leads = allLeads.slice((page - 1) * pageSize, page * pageSize)
 
-  type StatLead = {
-    status: string
+  type CountLead = { status: string }
+  type FinancialLead = {
     customerPrice: number | null
     contractorRate: number | null
     grossMarkup: number | null
@@ -154,20 +177,18 @@ export default async function DashboardPage({
     reconciliationBatchId: string | null
   }
 
+  // Count stats from createdAt-filtered data
   const totalLeads = stats.length
-  const quotesSent = stats.filter((l: StatLead) => ['QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
-  const jobsBooked = stats.filter((l: StatLead) => ['JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
-  const jobsCompleted = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED').length
-  const completedLeads = stats.filter((l: StatLead) => l.status === 'JOB_COMPLETED')
+  const quotesSent = stats.filter((l: CountLead) => ['QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
+  const jobsBooked = stats.filter((l: CountLead) => ['JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
+  const jobsCompleted = stats.filter((l: CountLead) => l.status === 'JOB_COMPLETED').length
 
-  // Revenue stats — all scoped to JOB_COMPLETED leads only (Change 35)
-  const totalCustomerRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.customerPrice ?? 0), 0)
-  const campaignRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.grossMarkup ?? 0), 0)
-  const totalJobsRevenue = completedLeads.reduce((s: number, l: StatLead) => s + (l.contractorRate ?? 0), 0)
-
-  // Commission (admin-only) — scoped to JOB_COMPLETED
-  const commissionEarned = completedLeads.filter((l: StatLead) => l.reconciliationBatchId != null).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
-  const commissionPending = completedLeads.filter((l: StatLead) => l.reconciliationBatchId == null).reduce((s: number, l: StatLead) => s + (l.omnisideCommission ?? 0), 0)
+  // Financial stats from jobCompletedAt-filtered data — matches commission page exactly
+  const totalCustomerRevenue = financialStats.reduce((s: number, l: FinancialLead) => s + (l.customerPrice ?? 0), 0)
+  const campaignRevenue = financialStats.reduce((s: number, l: FinancialLead) => s + (l.grossMarkup ?? 0), 0)
+  const totalJobsRevenue = financialStats.reduce((s: number, l: FinancialLead) => s + (l.contractorRate ?? 0), 0)
+  const commissionEarned = financialStats.filter((l: FinancialLead) => l.reconciliationBatchId != null).reduce((s: number, l: FinancialLead) => s + (l.omnisideCommission ?? 0), 0)
+  const commissionPending = financialStats.filter((l: FinancialLead) => l.reconciliationBatchId == null).reduce((s: number, l: FinancialLead) => s + (l.omnisideCommission ?? 0), 0)
 
   const isAdmin = role === 'ADMIN'
   const isClient = role === 'CLIENT'
@@ -178,7 +199,6 @@ export default async function DashboardPage({
     { label: 'Quotes Sent', value: String(quotesSent) },
     { label: 'Jobs Booked', value: String(jobsBooked) },
     { label: 'Jobs Completed', value: String(jobsCompleted) },
-    ...(isSubcontractor ? [{ label: 'Total Billed to Customers (ex GST)', value: `$${totalCustomerRevenue.toFixed(2)}` }] : []),
     ...(isSubcontractor ? [{ label: 'Total Jobs Revenue (ex GST)', value: `$${totalJobsRevenue.toFixed(2)}` }] : []),
     ...(isAdmin || isClient ? [{ label: 'Total Billed to Customers (ex GST)', value: `$${totalCustomerRevenue.toFixed(2)}` }] : []),
     ...(isAdmin || isClient ? [{ label: 'Our Margin (ex GST)', value: `$${campaignRevenue.toFixed(2)}` }] : []),
@@ -210,9 +230,6 @@ export default async function DashboardPage({
         <StatCard label="Jobs Booked" value={jobsBooked} />
         <StatCard label="Jobs Completed" value={jobsCompleted} />
         {isSubcontractor && (
-          <StatCard label="Total Billed to Customers (ex GST)" value={`$${totalCustomerRevenue.toFixed(2)}`} />
-        )}
-        {isSubcontractor && (
           <StatCard label="Total Jobs Revenue (ex GST)" value={`$${totalJobsRevenue.toFixed(2)}`} />
         )}
         {(isAdmin || isClient) && (
@@ -234,6 +251,8 @@ export default async function DashboardPage({
         dateRange={dateRange}
         from={fromParam}
         to={toParam}
+        needsActionCount={isAdmin ? needsActionCount : 0}
+        showNeedsAction={isAdmin}
       />
 
       {/* Table */}

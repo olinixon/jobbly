@@ -198,7 +198,11 @@ export default function ClientCommissionPage({
                     </thead>
                     <tbody>
                       {month.leads.map(lead => (
-                        <tr key={lead.quoteNumber} className="border-t border-[#F3F4F6] dark:border-[#1E293B]">
+                        <tr
+                          key={lead.quoteNumber}
+                          onClick={() => router.push(`/leads/${lead.quoteNumber}?from=commission`)}
+                          className="border-t border-[#F3F4F6] dark:border-[#1E293B] hover:bg-[#F0F7FF] dark:hover:bg-[#1e3a5f]/30 transition-colors cursor-pointer"
+                        >
                           <td className="px-4 py-2 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">{lead.quoteNumber}</td>
                           <td className="px-4 py-2 text-[#111827] dark:text-[#F1F5F9]">{lead.customerName}</td>
                           <td className="px-4 py-2 text-[#6B7280] dark:text-[#94A3B8] max-w-48 truncate">{lead.propertyAddress}</td>

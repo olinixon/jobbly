@@ -21,11 +21,13 @@ model Campaign {
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
 
-  users                User[]
-  leads                Lead[]
-  auditLogs            AuditLog[]
-  attachments          Attachment[]
+  users                 User[]
+  leads                 Lead[]
+  auditLogs             AuditLog[]
+  attachments           Attachment[]
   reconciliationBatches ReconciliationBatch[]
+  jobTypes              JobType[]
+  availabilitySlots     AvailabilitySlot[]
 }
 
 model User {
@@ -58,6 +60,18 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model JobType {
+  id              String   @id @default(uuid())
+  campaignId      String
+  name            String
+  durationMinutes Int
+  sortOrder       Int
+  createdAt       DateTime @default(now())
+
+  campaign Campaign  @relation(fields: [campaignId], references: [id])
+  leads    Lead[]
+}
+
 model Lead {
   id                    String     @id @default(uuid())
   campaignId            String
@@ -81,6 +95,11 @@ model Lead {
   invoiceUrl            String?
   invoiceUploadedAt     DateTime?
   invoiceUploadedById   String?
+  quoteUrl              String?
+  quoteUploadedAt       DateTime?
+  quoteUploadedBy       String?
+  bookingToken          String?    @unique
+  jobTypeId             String?
   jobBookedDate         DateTime?
   jobCompletedAt        DateTime?
   reconciliationBatchId String?
@@ -91,8 +110,11 @@ model Lead {
 
   campaign             Campaign              @relation(fields: [campaignId], references: [id])
   reconciliationBatch  ReconciliationBatch?  @relation(fields: [reconciliationBatchId], references: [id])
+  jobType              JobType?              @relation(fields: [jobTypeId], references: [id])
   auditLogs            AuditLog[]
   attachments          Attachment[]
+  scheduledEmails      ScheduledEmail[]
+  booking              Booking?
 }
 
 model ReconciliationBatch {
@@ -144,6 +166,46 @@ model Attachment {
   uploadedBy User     @relation(fields: [uploadedByUserId], references: [id])
 }
 
+model ScheduledEmail {
+  id           String   @id @default(uuid())
+  leadId       String
+  emailType    String   // "quote_initial" | "quote_reminder_24h" | "quote_reminder_final"
+  scheduledFor DateTime
+  sent         Boolean  @default(false)
+  cancelled    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+}
+
+model AvailabilitySlot {
+  id         String   @id @default(uuid())
+  campaignId String
+  date       DateTime
+  startTime  String   // "07:00"
+  endTime    String   // "13:00"
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  campaign Campaign  @relation(fields: [campaignId], references: [id])
+  bookings Booking[]
+}
+
+model Booking {
+  id           String        @id @default(uuid())
+  slotId       String
+  leadId       String        @unique
+  windowStart  String        // "07:00"
+  windowEnd    String        // "09:00"
+  bookedAt     DateTime      @default(now())
+  heldUntil    DateTime?
+  heldByToken  String?
+  status       BookingStatus @default(HELD)
+
+  slot AvailabilitySlot @relation(fields: [slotId], references: [id])
+  lead Lead             @relation(fields: [leadId], references: [id])
+}
+
 enum Role {
   ADMIN
   CLIENT
@@ -165,4 +227,9 @@ enum CampaignStatus {
 
 enum AttachmentType {
   INVOICE
+}
+
+enum BookingStatus {
+  HELD
+  CONFIRMED
 }

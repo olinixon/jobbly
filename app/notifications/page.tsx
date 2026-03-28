@@ -9,8 +9,9 @@ import { formatDateTime } from '@/lib/formatDate'
 
 export default async function NotificationsPage() {
   const session = await auth()
-  if (!session || session.user.role !== 'ADMIN') redirect('/login')
+  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUBCONTRACTOR')) redirect('/login')
 
+  const isAdmin = session.user.role === 'ADMIN'
   const campaignId = session.user.campaignId
   const where: Record<string, unknown> = {}
   if (campaignId) where.campaignId = campaignId
@@ -56,7 +57,7 @@ export default async function NotificationsPage() {
           {notifications.map((n) => (
             <Link
               key={n.id}
-              href={n.type === 'NEW_LEAD' ? `/leads/${n.quoteNumber}` : `/leads/${n.quoteNumber}`}
+              href={isAdmin ? `/leads/${n.quoteNumber}` : `/jobs/${n.quoteNumber}`}
               className="block bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-4 hover:bg-[#F9FAFB] dark:hover:bg-[#0F172A] transition-colors shadow-sm"
             >
               <div className="flex items-center justify-between">

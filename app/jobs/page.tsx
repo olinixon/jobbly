@@ -5,6 +5,7 @@ import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import JobsTable from '@/components/jobs/JobsTable'
+import JobsFilters from '@/components/jobs/JobsFilters'
 import { computeUrgency } from '@/lib/urgency'
 
 export default async function JobsPage({
@@ -31,10 +32,17 @@ export default async function JobsPage({
     ]
   }
 
+  // Needs-action count (unfiltered, matches sidebar badge)
+  const needsActionBaseWhere: Record<string, unknown> = { status: { not: 'JOB_COMPLETED' } }
+  if (session.user.campaignId) needsActionBaseWhere.campaignId = session.user.campaignId
+
   let jobs: { id: string; quoteNumber: string; customerName: string; propertyAddress: string; status: string; createdAt: Date; jobBookedDate?: Date | null; urgencyLevel?: 'HIGH' | 'MEDIUM' | null }[] = []
 
+  // Jobs page only shows active (non-completed) leads — completed go to /completed-jobs
+  const activeWhere = { ...where, status: { not: 'JOB_COMPLETED' as const } }
+
   if (isNeedsActionFilter) {
-    const activeJobs = await prisma.lead.findMany({ where: { ...where, status: { not: 'JOB_COMPLETED' } }, orderBy: { createdAt: 'asc' } })
+    const activeJobs = await prisma.lead.findMany({ where: activeWhere, orderBy: { createdAt: 'asc' } })
     const urgent = activeJobs
       .map(l => ({ ...l, urgencyLevel: computeUrgency(l) }))
       .filter(l => l.urgencyLevel !== null) as typeof jobs
@@ -44,47 +52,21 @@ export default async function JobsPage({
     })
     jobs = urgent
   } else {
-    // Two-tier sort: active jobs first (oldest first), completed last (oldest first)
-    const [activeJobs, completedJobs] = await Promise.all([
-      prisma.lead.findMany({ where: { ...where, status: { not: 'JOB_COMPLETED' } }, orderBy: { createdAt: 'asc' } }),
-      prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
-    ])
-    jobs = [
-      ...activeJobs.map(l => ({ ...l, urgencyLevel: computeUrgency(l) })),
-      ...completedJobs.map(l => ({ ...l, urgencyLevel: null as null })),
-    ]
+    const activeJobs = await prisma.lead.findMany({ where: activeWhere, orderBy: { createdAt: 'asc' } })
+    jobs = activeJobs.map(l => ({ ...l, urgencyLevel: computeUrgency(l) }))
   }
+
+  const needsActionLeads = await prisma.lead.findMany({
+    where: needsActionBaseWhere,
+    select: { status: true, createdAt: true, jobBookedDate: true },
+  })
+  const needsActionCount = needsActionLeads.filter(l => computeUrgency(l) !== null).length
 
   return (
     <AppShell>
       <PageHeader title="My Jobs" />
 
-      <form method="GET" className="flex gap-3 mb-4">
-        <input
-          name="search"
-          defaultValue={search}
-          placeholder="Search by quote number or customer…"
-          className="flex-1 min-w-48 px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-        />
-        <select
-          name="status"
-          defaultValue={statusFilter}
-          className="px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-        >
-          <option value="">All Statuses</option>
-          <option value="NEEDS_ACTION">⚡ Needs Action</option>
-          <option value="LEAD_RECEIVED">Lead Received</option>
-          <option value="QUOTE_SENT">Quote Sent</option>
-          <option value="JOB_BOOKED">Job Booked</option>
-          <option value="JOB_COMPLETED">Job Completed</option>
-        </select>
-        <button
-          type="submit"
-          className="px-4 py-2 text-sm font-medium bg-[#2563EB] text-white rounded-lg hover:bg-[#1D4ED8]"
-        >
-          Search
-        </button>
-      </form>
+      <JobsFilters search={search} status={statusFilter} needsActionCount={needsActionCount} />
 
       {jobs.length === 0 ? (
         <EmptyState message="No jobs yet. They'll appear here as leads come in." />
