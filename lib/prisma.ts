@@ -2,6 +2,8 @@ import { PrismaClient } from '@/app/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 
+console.log('[PRISMA] DATABASE_URL starts with:', process.env.DATABASE_URL?.substring(0, 50))
+
 function createPrismaClient() {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
