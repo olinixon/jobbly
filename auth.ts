@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { authConfig } from './auth.config'
 
+console.log('[AUTH] auth.ts module loaded, DATABASE_URL set:', !!process.env.DATABASE_URL)
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
@@ -14,6 +16,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
+        console.log('[AUTH] authorize called, email:', credentials?.email ?? 'MISSING')
         if (!credentials?.email || !credentials?.password) return null
 
         let user
