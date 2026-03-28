@@ -60,6 +60,8 @@ export async function POST(request: NextRequest) {
   const propertyPerimeterM = toFloatOrNull(mapped['property_perimeter_m'])
   const propertyAreaM2 = toFloatOrNull(mapped['property_area_m2'])
   const propertyStoreys = parseStoreys(mapped['property_storeys'] as string | number | null | undefined)
+  const gutterGuards = toStringOrNull(mapped['gutter_guards'])
+  const storeyCount = toStringOrNull(mapped['storey_count'])
   const contractorRate = toFloatOrNull(mapped['contractor_rate'])
   const callTimestamp = toStringOrNull(mapped['call_timestamp'])
 
@@ -93,6 +95,8 @@ export async function POST(request: NextRequest) {
         propertyPerimeterM: propertyPerimeterM ?? null,
         propertyAreaM2: propertyAreaM2 ?? null,
         propertyStoreys: propertyStoreys ?? null,
+        gutter_guards: gutterGuards ?? null,
+        storey_count: storeyCount ?? null,
         contractorRate: contractorRate ?? null,
         ...(contractorRate != null ? financials : {}),
         status: 'LEAD_RECEIVED',

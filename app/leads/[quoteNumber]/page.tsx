@@ -114,12 +114,14 @@ export default async function LeadDetailPage({
                   <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.propertyAreaM2}m²</dd>
                 </div>
               )}
-              {lead.propertyStoreys && (
-                <div className="flex justify-between">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Storeys</dt>
-                  <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.propertyStoreys}</dd>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Storeys</dt>
+                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.storey_count ?? '—'}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Gutter Guards</dt>
+                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.gutter_guards ?? '—'}</dd>
+              </div>
               <div className="flex justify-between">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Source</dt>
                 <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.source}</dd>

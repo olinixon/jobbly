@@ -84,6 +84,8 @@ model Lead {
   propertyPerimeterM    Float?
   propertyAreaM2        Float?
   propertyStoreys       Int?
+  gutter_guards         String?   // "Yes" or "No" — whether the property has gutter guards installed
+  storey_count          String?   // "1", "2", or "Unsure" — number of storeys on the property
   contractorRate        Float?
   customerPrice         Float?
   grossMarkup           Float?

@@ -13,9 +13,10 @@ export const webhookFieldMap: Record<string, string> = {
   perimeter: 'property_perimeter_m',
   property_area_m2: 'property_area_m2',
   area: 'property_area_m2',
-  property_storeys: 'property_storeys',
+  property_storeys: 'storey_count',      // n8n sends "property_storeys" → maps to internal "storey_count"
   storeys: 'property_storeys',
   floors: 'property_storeys',
+  gutter_guards: 'gutter_guards',        // n8n sends "gutter_guards" → maps to internal "gutter_guards"
   contractor_rate: 'contractor_rate',
   call_id: 'call_id',
   call_timestamp: 'call_timestamp',

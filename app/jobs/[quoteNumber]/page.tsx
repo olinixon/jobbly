@@ -84,12 +84,14 @@ export default async function JobDetailPage({
                   <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{job.propertyAreaM2}m²</dd>
                 </div>
               )}
-              {job.propertyStoreys && (
-                <div className="flex justify-between">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Storeys</dt>
-                  <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{job.propertyStoreys}</dd>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Storeys</dt>
+                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{job.storey_count ?? '—'}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Gutter Guards</dt>
+                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{job.gutter_guards ?? '—'}</dd>
+              </div>
               <div className="flex justify-between">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Quote Number</dt>
                 <dd className="font-mono text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">{job.quoteNumber}</dd>
