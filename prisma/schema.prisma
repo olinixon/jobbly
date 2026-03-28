@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Campaign {
@@ -113,7 +113,6 @@ model Lead {
   jobType              JobType?              @relation(fields: [jobTypeId], references: [id])
   auditLogs            AuditLog[]
   attachments          Attachment[]
-  scheduledEmails      ScheduledEmail[]
   booking              Booking?
 }
 
@@ -166,17 +165,6 @@ model Attachment {
   uploadedBy User     @relation(fields: [uploadedByUserId], references: [id])
 }
 
-model ScheduledEmail {
-  id           String   @id @default(uuid())
-  leadId       String
-  emailType    String   // "quote_initial" | "quote_reminder_24h" | "quote_reminder_final"
-  scheduledFor DateTime
-  sent         Boolean  @default(false)
-  cancelled    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-
-  lead Lead @relation(fields: [leadId], references: [id])
-}
 
 model AvailabilitySlot {
   id         String   @id @default(uuid())

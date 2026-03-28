@@ -88,11 +88,6 @@ export async function POST(
       })
     }
 
-    // Cancel all pending follow-up emails
-    await tx.scheduledEmail.updateMany({
-      where: { leadId: lead.id, sent: false, cancelled: false },
-      data: { cancelled: true },
-    })
   })
 
   const bookingDate = formatBookingDate(slotDate)

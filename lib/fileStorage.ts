@@ -1,4 +1,4 @@
-import { writeFile, mkdir, readFile } from 'fs/promises'
+import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
@@ -28,13 +28,3 @@ export async function saveFile(buffer: Buffer, fileName: string, mimeType: strin
   }
 }
 
-export async function getFileBuffer(url: string): Promise<Buffer> {
-  if (url.startsWith('/uploads/')) {
-    const uploadDir = process.env.UPLOAD_DIR ?? './uploads'
-    const fileName = url.replace('/uploads/', '')
-    return readFile(path.join(uploadDir, fileName))
-  }
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Failed to fetch file: ${url}`)
-  return Buffer.from(await res.arrayBuffer())
-}

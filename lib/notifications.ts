@@ -228,48 +228,6 @@ export async function sendQuoteEmail(params: QuoteEmailParams) {
   await resend.emails.send(payload)
 }
 
-export async function sendQuoteReminder24h(params: QuoteEmailParams) {
-  const html = buildQuoteHtml(
-    params,
-    `Hi ${params.customerName}, just a reminder that your gutter cleaning quote is waiting. Please find it attached.`,
-    "Don't forget — your gutter cleaning quote is waiting"
-  )
-
-  const payload: Parameters<typeof resend.emails.send>[0] = {
-    from: process.env.EMAIL_FROM!,
-    to: params.to,
-    subject: `Don't forget — your gutter cleaning quote is waiting`,
-    html,
-  }
-
-  if (params.pdfBuffer) {
-    payload.attachments = [{ filename: params.pdfFileName ?? 'quote.pdf', content: params.pdfBuffer }]
-  }
-
-  await resend.emails.send(payload)
-}
-
-export async function sendQuoteFinalReminder(params: QuoteEmailParams) {
-  const html = buildQuoteHtml(
-    params,
-    `Hi ${params.customerName}, this is a final reminder that your gutter cleaning quote is ready. Please find it attached.`,
-    'Final reminder — your gutter cleaning quote'
-  )
-
-  const payload: Parameters<typeof resend.emails.send>[0] = {
-    from: process.env.EMAIL_FROM!,
-    to: params.to,
-    subject: `Final reminder — your gutter cleaning quote`,
-    html,
-  }
-
-  if (params.pdfBuffer) {
-    payload.attachments = [{ filename: params.pdfFileName ?? 'quote.pdf', content: params.pdfBuffer }]
-  }
-
-  await resend.emails.send(payload)
-}
-
 // ─── Missing Email Alert ──────────────────────────────────────────────────────
 
 interface MissingEmailAlertParams {

@@ -51,8 +51,6 @@ export async function POST(request: NextRequest) {
 
   const bookingToken = randomUUID()
   const now = new Date()
-  const reminderIn24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-  const reminderIn5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000)
 
   await prisma.$transaction([
     prisma.lead.update({
@@ -76,17 +74,9 @@ export async function POST(request: NextRequest) {
         newStatus: 'QUOTE_SENT',
       },
     }),
-    ...(lead.customerEmail ? [
-      prisma.scheduledEmail.create({
-        data: { leadId: lead.id, emailType: 'quote_reminder_24h', scheduledFor: reminderIn24h },
-      }),
-      prisma.scheduledEmail.create({
-        data: { leadId: lead.id, emailType: 'quote_reminder_final', scheduledFor: reminderIn5Days },
-      }),
-    ] : []),
   ])
 
-  // Fire-and-forget emails (don't block the response)
+  // Send quote email immediately (fire-and-forget so it doesn't block the response)
   if (lead.customerEmail) {
     ;(async () => {
       try {
