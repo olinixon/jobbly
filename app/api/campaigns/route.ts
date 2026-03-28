@@ -32,5 +32,14 @@ export async function POST(request: NextRequest) {
       startDate: new Date(body.startDate),
     },
   })
+
+  await prisma.jobType.createMany({
+    data: [
+      { campaignId: campaign.id, name: 'Standard Gutter Clean', durationMinutes: 120, sortOrder: 1 },
+      { campaignId: campaign.id, name: 'Mid-Range Clean', durationMinutes: 240, sortOrder: 2 },
+      { campaignId: campaign.id, name: 'Full Service Clean', durationMinutes: 360, sortOrder: 3 },
+    ],
+  })
+
   return NextResponse.json(campaign, { status: 201 })
 }

@@ -22,12 +22,19 @@ const CURRENT_YEAR = new Date().getFullYear()
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 const MAX_SIZE = 10 * 1024 * 1024
 
+interface JobType {
+  id: string
+  name: string
+  durationMinutes: number
+}
+
 interface JobActionsProps {
   quoteNumber: string
   currentStatus: string
   hasInvoice: boolean
   invoiceUrl: string | null
   markupPercentage: number
+  jobTypes: JobType[]
 }
 
 type UploadStep = 'drop' | 'uploading' | 'confirm' | 'fallback'
@@ -53,17 +60,27 @@ function fmtBytes(b: number) {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function JobActions({ quoteNumber, currentStatus, hasInvoice, invoiceUrl, markupPercentage }: JobActionsProps) {
+export default function JobActions({ quoteNumber, currentStatus, hasInvoice, invoiceUrl, markupPercentage, jobTypes }: JobActionsProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showRevertModal, setShowRevertModal] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+  const [showQuoteModal, setShowQuoteModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [reverting, setReverting] = useState(false)
   const [revertError, setRevertError] = useState('')
+
+  // Quote upload state
+  const [quoteFile, setQuoteFile] = useState<File | null>(null)
+  const [quoteDragOver, setQuoteDragOver] = useState(false)
+  const [quoteFileError, setQuoteFileError] = useState('')
+  const [selectedJobTypeId, setSelectedJobTypeId] = useState('')
+  const [quoteUploading, setQuoteUploading] = useState(false)
+  const [quoteSuccess, setQuoteSuccess] = useState('')
+  const quoteFileInputRef = useRef<HTMLInputElement>(null)
 
   const [bookedDay, setBookedDay] = useState('')
   const [bookedMonth, setBookedMonth] = useState('')
@@ -236,13 +253,65 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
     setEditMode(false)
   }
 
+  function handleQuoteFileDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setQuoteDragOver(false)
+    const f = e.dataTransfer.files[0]
+    if (!f) return
+    if (f.type !== 'application/pdf') { setQuoteFileError('Only PDF files are accepted.'); return }
+    if (f.size > MAX_SIZE) { setQuoteFileError('File must be under 10MB.'); return }
+    setQuoteFileError('')
+    setQuoteFile(f)
+  }
+
+  function handleQuoteFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (f.type !== 'application/pdf') { setQuoteFileError('Only PDF files are accepted.'); return }
+    if (f.size > MAX_SIZE) { setQuoteFileError('File must be under 10MB.'); return }
+    setQuoteFileError('')
+    setQuoteFile(f)
+  }
+
+  async function uploadQuote() {
+    if (!quoteFile || !selectedJobTypeId) return
+    setQuoteUploading(true)
+    setQuoteFileError('')
+    const fd = new FormData()
+    fd.append('file', quoteFile)
+    fd.append('quoteNumber', quoteNumber)
+    fd.append('jobTypeId', selectedJobTypeId)
+    const res = await fetch('/api/upload/quote', { method: 'POST', body: fd })
+    setQuoteUploading(false)
+    if (!res.ok) {
+      const d = await res.json()
+      setQuoteFileError(d.error ?? 'Upload failed.')
+      return
+    }
+    setQuoteSuccess('Quote uploaded and sent to the customer.')
+    setTimeout(() => { closeQuoteModal(); router.refresh() }, 1500)
+  }
+
+  function closeQuoteModal() {
+    setShowQuoteModal(false)
+    setQuoteFile(null)
+    setQuoteFileError('')
+    setSelectedJobTypeId('')
+    setQuoteUploading(false)
+    setQuoteSuccess('')
+  }
+
   return (
     <>
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
         <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-2">Current Status</h2>
         <div className="text-2xl font-bold text-[#111827] dark:text-[#F1F5F9] mb-4">{currentStatus.replace(/_/g, ' ')}</div>
         <div className="flex flex-wrap gap-3">
-          {nextStatus && (
+          {currentStatus === 'LEAD_RECEIVED' ? (
+            <Button onClick={() => { setQuoteFileError(''); setShowQuoteModal(true) }}>
+              Upload Quote
+            </Button>
+          ) : nextStatus && (
             <Button onClick={() => { setError(''); setDateError(''); setShowStatusModal(true) }}>
               Move to {STATUS_LABELS[nextStatus]}
             </Button>
@@ -335,6 +404,78 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
             <Button onClick={updateStatus} disabled={saving || (nextStatus === 'JOB_COMPLETED' && !hasInvoice) || (isBookingStep && !bookedDateFilled) || (isBookingStep && !bookedDateValid)}>
               {saving ? 'Saving…' : 'Confirm'}
             </Button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Upload Quote modal */}
+      {showQuoteModal && (
+        <Modal title="Upload Quote" onClose={closeQuoteModal}>
+          <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-4">
+            Upload the quote PDF to send to the customer. PDF only — max 10MB.
+          </p>
+          <div className="space-y-4">
+            {/* File drop zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setQuoteDragOver(true) }}
+              onDragLeave={() => setQuoteDragOver(false)}
+              onDrop={handleQuoteFileDrop}
+              onClick={() => quoteFileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${quoteDragOver ? 'border-[#2563EB] bg-blue-50 dark:bg-blue-950/30' : 'border-[#D1D5DB] dark:border-[#334155] bg-[#F9FAFB] dark:bg-[#0F172A]'}`}
+            >
+              <input ref={quoteFileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleQuoteFileChange} />
+              {quoteFile ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">{quoteFile.name}</p>
+                  <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{fmtBytes(quoteFile.size)}</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3">
+                  <svg className="w-8 h-8 text-[#9CA3AF] dark:text-[#475569]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  <div>
+                    <p className="text-sm font-medium text-[#374151] dark:text-[#CBD5E1]">Drag and drop your quote PDF here</p>
+                    <p className="text-xs text-[#9CA3AF] dark:text-[#475569] mt-1">PDF only — max 10MB</p>
+                  </div>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); quoteFileInputRef.current?.click() }} className="px-4 py-2 text-sm font-medium rounded-lg border border-[#D1D5DB] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors">
+                    Choose File
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Job type selector */}
+            <div>
+              <label className="block text-sm font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">Job type</label>
+              <select
+                value={selectedJobTypeId}
+                onChange={e => setSelectedJobTypeId(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+              >
+                <option value="">Select a job type…</option>
+                {jobTypes.map(jt => (
+                  <option key={jt.id} value={jt.id}>{jt.name}</option>
+                ))}
+              </select>
+              {jobTypes.length === 0 && (
+                <p className="mt-1 text-xs text-[#9CA3AF]">No job types configured. Ask your admin to add job types in Settings.</p>
+              )}
+            </div>
+
+            {quoteFileError && <p className="text-sm text-[#DC2626]">{quoteFileError}</p>}
+            {quoteSuccess && <p className="text-sm text-[#16A34A]">{quoteSuccess}</p>}
+
+            <div className="flex gap-3 justify-end">
+              <Button variant="secondary" onClick={closeQuoteModal}>Cancel</Button>
+              <Button
+                onClick={uploadQuote}
+                disabled={!quoteFile || !selectedJobTypeId || quoteUploading || !!quoteSuccess}
+              >
+                {quoteUploading ? 'Uploading…' : 'Upload & Send Quote'}
+              </Button>
+            </div>
           </div>
         </Modal>
       )}

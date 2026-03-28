@@ -122,6 +122,12 @@ export async function PATCH(
     }
 
     await prisma.$transaction(async (tx) => {
+      if (body.status === 'JOB_BOOKED') {
+        await tx.scheduledEmail.updateMany({
+          where: { leadId: lead.id, sent: false, cancelled: false },
+          data: { cancelled: true },
+        })
+      }
       await tx.auditLog.create({
         data: {
           leadId: lead.id,

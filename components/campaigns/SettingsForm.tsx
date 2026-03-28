@@ -6,6 +6,8 @@ import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import Modal from '@/components/ui/Modal'
+import JobTypesSection from '@/components/campaigns/JobTypesSection'
+import AvailabilitySection from '@/components/campaigns/AvailabilitySection'
 
 interface Campaign {
   id: string
@@ -20,7 +22,24 @@ interface Campaign {
   startDate: Date
 }
 
-export default function SettingsForm({ campaign }: { campaign: Campaign }) {
+interface JobType {
+  id: string
+  name: string
+  durationMinutes: number
+  sortOrder: number
+}
+
+interface AvailabilitySlot {
+  id: string
+  date: string
+  startTime: string
+  endTime: string
+  notes: string | null
+  createdAt: string
+  confirmedBookings: number
+}
+
+export default function SettingsForm({ campaign, jobTypes, availabilitySlots }: { campaign: Campaign; jobTypes: JobType[]; availabilitySlots: AvailabilitySlot[] }) {
   const router = useRouter()
   const [saving, setSaving] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -173,6 +192,12 @@ export default function SettingsForm({ campaign }: { campaign: Campaign }) {
           </Button>
         </div>
       </section>
+      {/* Section 5a: Job Types */}
+      <JobTypesSection campaignId={campaign.id} initialJobTypes={jobTypes} />
+
+      {/* Section 5b: Booking Availability */}
+      <AvailabilitySection campaignId={campaign.id} initialSlots={availabilitySlots} jobTypes={jobTypes} />
+
       {/* Section 4: Danger Zone */}
       <section className="bg-white dark:bg-[#1E293B] border border-[#DC2626]/30 rounded-xl p-6 shadow-sm">
         <h2 className="font-semibold text-[#DC2626] mb-2">Danger Zone</h2>

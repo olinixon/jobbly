@@ -169,3 +169,218 @@ export async function sendJobCompletedEmail(params: JobCompletedEmailParams) {
     html,
   })
 }
+
+// ─── Quote Email (initial) ────────────────────────────────────────────────────
+
+interface QuoteEmailParams {
+  to: string
+  customerName: string
+  propertyAddress: string
+  quoteNumber: string
+  customerPrice: number | null
+  bookingToken: string
+  pdfBuffer?: Buffer
+  pdfFileName?: string
+}
+
+function buildQuoteHtml(params: QuoteEmailParams, intro: string, heading: string): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const bookingUrl = `${appUrl}/book/${params.bookingToken}`
+  const exGst = params.customerPrice ?? 0
+  const inclGst = exGst * 1.15
+
+  return emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">${heading}</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">${intro}</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Property', params.propertyAddress)}
+          ${row('Quote number', params.quoteNumber)}
+          ${row('Price', `$${exGst.toFixed(2)} + GST = $${inclGst.toFixed(2)} incl. GST`)}
+        </table>
+      `)}
+      <p style="margin:0 0 20px;font-size:14px;color:#71717a;">To book your job, click the link below and choose a time that suits you:</p>
+      <div style="margin-bottom:24px;">${primaryButton(bookingUrl, 'BOOK NOW')}</div>
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">This quote is valid for 30 days. If you have any questions, please don't hesitate to get in touch.</p>
+    </td></tr>
+  `)
+}
+
+export async function sendQuoteEmail(params: QuoteEmailParams) {
+  const html = buildQuoteHtml(
+    params,
+    `Hi ${params.customerName}, thank you for your interest in our gutter cleaning service. Please find your quote attached.`,
+    'Your gutter cleaning quote'
+  )
+
+  const payload: Parameters<typeof resend.emails.send>[0] = {
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: `Your gutter cleaning quote — ${params.propertyAddress}`,
+    html,
+  }
+
+  if (params.pdfBuffer) {
+    payload.attachments = [{ filename: params.pdfFileName ?? 'quote.pdf', content: params.pdfBuffer }]
+  }
+
+  await resend.emails.send(payload)
+}
+
+export async function sendQuoteReminder24h(params: QuoteEmailParams) {
+  const html = buildQuoteHtml(
+    params,
+    `Hi ${params.customerName}, just a reminder that your gutter cleaning quote is waiting. Please find it attached.`,
+    "Don't forget — your gutter cleaning quote is waiting"
+  )
+
+  const payload: Parameters<typeof resend.emails.send>[0] = {
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: `Don't forget — your gutter cleaning quote is waiting`,
+    html,
+  }
+
+  if (params.pdfBuffer) {
+    payload.attachments = [{ filename: params.pdfFileName ?? 'quote.pdf', content: params.pdfBuffer }]
+  }
+
+  await resend.emails.send(payload)
+}
+
+export async function sendQuoteFinalReminder(params: QuoteEmailParams) {
+  const html = buildQuoteHtml(
+    params,
+    `Hi ${params.customerName}, this is a final reminder that your gutter cleaning quote is ready. Please find it attached.`,
+    'Final reminder — your gutter cleaning quote'
+  )
+
+  const payload: Parameters<typeof resend.emails.send>[0] = {
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: `Final reminder — your gutter cleaning quote`,
+    html,
+  }
+
+  if (params.pdfBuffer) {
+    payload.attachments = [{ filename: params.pdfFileName ?? 'quote.pdf', content: params.pdfBuffer }]
+  }
+
+  await resend.emails.send(payload)
+}
+
+// ─── Missing Email Alert ──────────────────────────────────────────────────────
+
+interface MissingEmailAlertParams {
+  quoteNumber: string
+  customerName: string
+  propertyAddress: string
+}
+
+export async function sendMissingEmailAlert(params: MissingEmailAlertParams) {
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#dc2626;">Action required — customer email missing</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">The lead below was received without a customer email address. The quote has been uploaded but the email could not be sent. Please obtain the customer's email address and send manually.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Quote number', params.quoteNumber)}
+          ${row('Customer', params.customerName)}
+          ${row('Property', params.propertyAddress)}
+        </table>
+      `)}
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: process.env.EMAIL_OLI!,
+    subject: `Action required — customer email missing — ${params.quoteNumber}`,
+    html,
+  })
+}
+
+// ─── Booking Confirmation (to customer) ──────────────────────────────────────
+
+interface BookingConfirmationParams {
+  to: string
+  customerName: string
+  propertyAddress: string
+  quoteNumber: string
+  jobTypeName: string
+  bookingDate: string    // e.g. "Wednesday 5 April 2026"
+  windowStart: string    // e.g. "7:00am"
+  windowEnd: string      // e.g. "9:00am"
+}
+
+export async function sendBookingConfirmationCustomer(params: BookingConfirmationParams) {
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">Booking confirmed</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Hi ${params.customerName}, your gutter cleaning has been booked.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Property', params.propertyAddress)}
+          ${row('Date', params.bookingDate)}
+          ${row('Time', `${params.windowStart} – ${params.windowEnd}`)}
+          ${row('Job type', params.jobTypeName)}
+          ${row('Quote number', params.quoteNumber)}
+        </table>
+      `)}
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">We'll see you then. If you need to make any changes, please contact us.</p>
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: `Booking confirmed — ${params.propertyAddress}`,
+    html,
+  })
+}
+
+// ─── Booking Notification (to subcontractor/PWB) ─────────────────────────────
+
+interface BookingNotificationParams {
+  to: string | string[]
+  quoteNumber: string
+  customerName: string
+  propertyAddress: string
+  googleMapsUrl: string
+  jobTypeName: string
+  bookingDate: string
+  windowStart: string
+  windowEnd: string
+}
+
+export async function sendBookingNotificationPWB(params: BookingNotificationParams) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const jobUrl = `${appUrl}/jobs/${params.quoteNumber}`
+
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">New job booked</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">A customer has booked a job.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Quote number', params.quoteNumber)}
+          ${row('Customer', params.customerName)}
+          ${row('Property', params.propertyAddress)}
+          ${row('Job type', params.jobTypeName)}
+          ${row('Date', params.bookingDate)}
+          ${row('Time', `${params.windowStart} – ${params.windowEnd}`)}
+        </table>
+      `)}
+      <div style="margin-bottom:12px;">${primaryButton(jobUrl, 'View Job in Jobbly')}</div>
+      <div>${secondaryButton(params.googleMapsUrl, 'Open in Google Maps')}</div>
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: `New job booked — ${params.quoteNumber} — ${params.customerName}`,
+    html,
+  })
+}

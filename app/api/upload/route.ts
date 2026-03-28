@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { calculateCommissionFromCustomerPrice } from '@/lib/calculateCommission'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { saveFile } from '@/lib/fileStorage'
 import Anthropic from '@anthropic-ai/sdk'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages'
 
@@ -50,21 +49,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invoice can only be uploaded when the job is booked or completed.' }, { status: 400 })
   }
 
-  // Save file to disk
-  const uploadDir = process.env.UPLOAD_DIR ?? './uploads'
   const ext = file.name.split('.').pop()
-  const fileName = `${quoteNumber}-${Date.now()}.${ext}`
-  const filePath = path.join(uploadDir, fileName)
+  const fileName = `invoice-${quoteNumber}-${Date.now()}.${ext}`
   const buffer = Buffer.from(await file.arrayBuffer())
 
+  let fileUrl: string
   try {
-    await mkdir(uploadDir, { recursive: true })
-    await writeFile(filePath, buffer)
+    fileUrl = await saveFile(buffer, fileName, file.type)
   } catch {
     return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
   }
-
-  const fileUrl = `/uploads/${fileName}`
 
   // Call Anthropic to extract customer price
   let aiRaw: string | null = null

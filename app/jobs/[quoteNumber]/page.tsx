@@ -28,6 +28,11 @@ export default async function JobDetailPage({
   if (!job) notFound()
   if (job.campaignId !== session.user.campaignId) redirect('/jobs')
 
+  const jobTypes = await prisma.jobType.findMany({
+    where: { campaignId: job.campaignId },
+    orderBy: { sortOrder: 'asc' },
+  })
+
   return (
     <AppShell>
       <div className="mb-6">
@@ -156,6 +161,7 @@ export default async function JobDetailPage({
             hasInvoice={!!job.invoiceUrl}
             invoiceUrl={job.invoiceUrl}
             markupPercentage={job.campaign.markupPercentage}
+            jobTypes={jobTypes}
           />
         </div>
       </div>

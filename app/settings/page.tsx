@@ -13,13 +13,31 @@ export default async function SettingsPage() {
   const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
   if (!campaignId) redirect('/campaigns')
 
-  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
+  const [campaign, jobTypes, rawSlots] = await Promise.all([
+    prisma.campaign.findUnique({ where: { id: campaignId } }),
+    prisma.jobType.findMany({ where: { campaignId }, orderBy: { sortOrder: 'asc' } }),
+    prisma.availabilitySlot.findMany({
+      where: { campaignId },
+      orderBy: { date: 'asc' },
+      include: { bookings: { where: { status: 'CONFIRMED' }, select: { id: true } } },
+    }),
+  ])
   if (!campaign) redirect('/campaigns')
+
+  const availabilitySlots = rawSlots.map(s => ({
+    id: s.id,
+    date: s.date.toISOString(),
+    startTime: s.startTime,
+    endTime: s.endTime,
+    notes: s.notes,
+    createdAt: s.createdAt.toISOString(),
+    confirmedBookings: s.bookings.length,
+  }))
 
   return (
     <AppShell>
       <PageHeader title="Settings" subtitle={campaign.name} />
-      <SettingsForm campaign={campaign} />
+      <SettingsForm campaign={campaign} jobTypes={jobTypes} availabilitySlots={availabilitySlots} />
     </AppShell>
   )
 }
