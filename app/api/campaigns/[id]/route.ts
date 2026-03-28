@@ -26,6 +26,8 @@ export async function PATCH(
     updateData.commissionPercentage = body.commissionPercentage
     updateData.clientMarginPercentage = 100 - body.commissionPercentage
   }
+  if ('customer_from_email' in body) updateData.customer_from_email = body.customer_from_email ?? null
+  if ('customer_from_name' in body) updateData.customer_from_name = body.customer_from_name ?? null
 
   const campaign = await prisma.campaign.update({ where: { id }, data: updateData })
   return NextResponse.json(campaign)

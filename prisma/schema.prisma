@@ -18,6 +18,8 @@ model Campaign {
   clientMarginPercentage   Float
   status                   CampaignStatus @default(ACTIVE)
   startDate                DateTime
+  customer_from_email      String?        // e.g. "hello@continuousgroup.co.nz" — sender address for customer emails
+  customer_from_name       String?        // e.g. "Continuous Group" — display name shown to customers in their inbox
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
 

@@ -27,7 +27,10 @@ export async function POST(
 
   const lead = await prisma.lead.findUnique({
     where: { bookingToken: token },
-    include: { jobType: true },
+    include: {
+      jobType: true,
+      campaign: { select: { customer_from_email: true, customer_from_name: true } },
+    },
   })
   if (!lead) return NextResponse.json({ error: 'Invalid booking link' }, { status: 404 })
 
@@ -108,6 +111,7 @@ export async function POST(
           bookingDate,
           windowStart: windowStartFmt,
           windowEnd: windowEndFmt,
+          campaign: lead.campaign,
         })
       }
 

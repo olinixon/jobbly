@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { getCustomerFromAddress } from '@/lib/getCustomerFromAddress'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const APP_URL = () => process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
@@ -181,6 +182,7 @@ interface QuoteEmailParams {
   bookingToken: string
   pdfBuffer?: Buffer
   pdfFileName?: string
+  campaign: { customer_from_email?: string | null; customer_from_name?: string | null }
 }
 
 function buildQuoteHtml(params: QuoteEmailParams, intro: string, heading: string): string {
@@ -215,7 +217,7 @@ export async function sendQuoteEmail(params: QuoteEmailParams) {
   )
 
   const payload: Parameters<typeof resend.emails.send>[0] = {
-    from: process.env.EMAIL_FROM!,
+    from: getCustomerFromAddress(params.campaign),
     to: params.to,
     subject: `Your gutter cleaning quote — ${params.propertyAddress}`,
     html,
@@ -270,6 +272,7 @@ interface BookingConfirmationParams {
   bookingDate: string    // e.g. "Wednesday 5 April 2026"
   windowStart: string    // e.g. "7:00am"
   windowEnd: string      // e.g. "9:00am"
+  campaign: { customer_from_email?: string | null; customer_from_name?: string | null }
 }
 
 export async function sendBookingConfirmationCustomer(params: BookingConfirmationParams) {
@@ -291,7 +294,7 @@ export async function sendBookingConfirmationCustomer(params: BookingConfirmatio
   `)
 
   await resend.emails.send({
-    from: process.env.EMAIL_FROM!,
+    from: getCustomerFromAddress(params.campaign),
     to: params.to,
     subject: `Booking confirmed — ${params.propertyAddress}`,
     html,

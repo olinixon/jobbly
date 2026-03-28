@@ -27,7 +27,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Only PDF files are accepted.' }, { status: 400 })
   }
 
-  const lead = await prisma.lead.findUnique({ where: { quoteNumber } })
+  const lead = await prisma.lead.findUnique({
+    where: { quoteNumber },
+    include: { campaign: { select: { customer_from_email: true, customer_from_name: true } } },
+  })
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
   if (session.user.role !== 'ADMIN' && lead.campaignId !== session.user.campaignId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -89,6 +92,7 @@ export async function POST(request: NextRequest) {
           bookingToken,
           pdfBuffer: buffer,
           pdfFileName: fileName,
+          campaign: lead.campaign,
         })
       } catch (err) {
         console.error('Quote email send failed:', err)
