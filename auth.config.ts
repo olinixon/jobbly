@@ -2,7 +2,6 @@ import type { NextAuthConfig } from 'next-auth'
 
 // Lightweight auth config — no Prisma, no native addons — safe for Edge/middleware
 export const authConfig: NextAuthConfig = {
-  secret: process.env.NEXTAUTH_SECRET,
   trustHost: true,
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
