@@ -70,17 +70,23 @@ export async function POST(
       data: { status: 'JOB_BOOKED', jobBookedDate: slotDate },
     })
 
-    // Write audit log
-    await tx.auditLog.create({
-      data: {
-        leadId: lead.id,
-        campaignId: lead.campaignId,
-        changedByUserId: lead.id, // customer action — use lead id as placeholder
-        changedByName: lead.customerName,
-        oldStatus: 'QUOTE_SENT',
-        newStatus: 'JOB_BOOKED',
-      },
+    // Write audit log — find any admin user for the campaign as the actor (booking is a customer action)
+    const adminUser = await tx.user.findFirst({
+      where: { campaignId: lead.campaignId, role: 'ADMIN', isActive: true },
+      select: { id: true },
     })
+    if (adminUser) {
+      await tx.auditLog.create({
+        data: {
+          leadId: lead.id,
+          campaignId: lead.campaignId,
+          changedByUserId: adminUser.id,
+          changedByName: `${lead.customerName} (customer booking)`,
+          oldStatus: 'QUOTE_SENT',
+          newStatus: 'JOB_BOOKED',
+        },
+      })
+    }
 
     // Cancel all pending follow-up emails
     await tx.scheduledEmail.updateMany({
