@@ -5,6 +5,17 @@ import { generateQuoteNumber } from '@/lib/generateQuoteNumber'
 import { generateMapsUrl } from '@/lib/generateMapsUrl'
 import { calculateCommission } from '@/lib/calculateCommission'
 import { sendNewLeadEmail } from '@/lib/notifications'
+import { parseStoreys } from '@/lib/parseStoreys'
+import { normalisePhone } from '@/lib/normalisePhone'
+
+const toStringOrNull = (val: unknown): string | null =>
+  typeof val === 'string' && val.trim() !== '' ? val.trim() : null;
+
+const toFloatOrNull = (val: unknown): number | null => {
+  if (val === null || val === undefined || val === '') return null;
+  const n = parseFloat(String(val));
+  return isNaN(n) ? null : n;
+};
 
 export async function POST(request: NextRequest) {
   // Validate webhook secret
@@ -42,15 +53,15 @@ export async function POST(request: NextRequest) {
 
   const mapped = mapWebhookPayload(raw)
 
-  const customerName = mapped['customer_name'] as string | undefined
-  const customerPhone = mapped['customer_phone'] as string | undefined
-  const propertyAddress = mapped['property_address'] as string | undefined
-  const customerEmail = mapped['customer_email'] as string | undefined
-  const propertyPerimeterM = mapped['property_perimeter_m'] as number | undefined
-  const propertyAreaM2 = mapped['property_area_m2'] as number | undefined
-  const propertyStoreys = mapped['property_storeys'] as number | undefined
-  const contractorRate = mapped['contractor_rate'] as number | undefined
-  const callTimestamp = mapped['call_timestamp'] as string | undefined
+  const customerName = toStringOrNull(mapped['customer_name'])
+  const customerPhone = normalisePhone(mapped['customer_phone'] as string | null | undefined)
+  const propertyAddress = toStringOrNull(mapped['property_address'])
+  const customerEmail = toStringOrNull(mapped['customer_email'])
+  const propertyPerimeterM = toFloatOrNull(mapped['property_perimeter_m'])
+  const propertyAreaM2 = toFloatOrNull(mapped['property_area_m2'])
+  const propertyStoreys = parseStoreys(mapped['property_storeys'] as string | number | null | undefined)
+  const contractorRate = toFloatOrNull(mapped['contractor_rate'])
+  const callTimestamp = toStringOrNull(mapped['call_timestamp'])
 
   const missingFields: string[] = []
   if (!customerName) missingFields.push('customer_name')
@@ -69,70 +80,78 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const lead = await prisma.lead.create({
-    data: {
-      campaignId: campaign.id,
-      quoteNumber,
-      customerName: customerName ?? 'Unknown',
-      customerPhone: customerPhone ?? '',
-      customerEmail: customerEmail ?? null,
-      propertyAddress: propertyAddress ?? '',
-      googleMapsUrl,
-      propertyPerimeterM: propertyPerimeterM ?? null,
-      propertyAreaM2: propertyAreaM2 ?? null,
-      propertyStoreys: propertyStoreys ?? null,
-      contractorRate: contractorRate ?? null,
-      ...(contractorRate != null ? financials : {}),
-      status: 'LEAD_RECEIVED',
-      source: 'n8n_webhook',
-      webhookRaw: JSON.stringify(raw),
-      needsReview: missingFields.length > 0,
-      notes: missingFields.length > 0
-        ? `Received while campaign ${campaign.status === 'PAUSED' ? 'paused. ' : ''}Missing fields: ${missingFields.join(', ')}`
-        : campaign.status === 'PAUSED'
-        ? 'Received while campaign paused.'
-        : null,
-      createdAt: callTimestamp ? new Date(callTimestamp) : new Date(),
-    },
-  })
+  try {
+    const lead = await prisma.lead.create({
+      data: {
+        campaignId: campaign.id,
+        quoteNumber,
+        customerName: customerName ?? 'Unknown',
+        customerPhone: customerPhone ?? '',
+        customerEmail: customerEmail ?? null,
+        propertyAddress: propertyAddress ?? '',
+        googleMapsUrl,
+        propertyPerimeterM: propertyPerimeterM ?? null,
+        propertyAreaM2: propertyAreaM2 ?? null,
+        propertyStoreys: propertyStoreys ?? null,
+        contractorRate: contractorRate ?? null,
+        ...(contractorRate != null ? financials : {}),
+        status: 'LEAD_RECEIVED',
+        source: 'n8n_webhook',
+        webhookRaw: JSON.stringify(raw),
+        needsReview: missingFields.length > 0,
+        notes: missingFields.length > 0
+          ? `Received while campaign ${campaign.status === 'PAUSED' ? 'paused. ' : ''}Missing fields: ${missingFields.join(', ')}`
+          : campaign.status === 'PAUSED'
+          ? 'Received while campaign paused.'
+          : null,
+        createdAt: callTimestamp ? new Date(callTimestamp) : new Date(),
+      },
+    })
 
-  // Fire-and-forget email to eligible subcontractors
-  ;(async () => {
-    try {
-      const recipients = await prisma.user.findMany({
-        where: { campaignId: campaign.id, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
-        select: { email: true },
-      })
-      if (recipients.length > 0) {
-        await sendNewLeadEmail({
-          to: recipients.map(r => r.email),
-          quoteNumber,
-          customerName: lead.customerName,
-          customerPhone: lead.customerPhone,
-          propertyAddress: lead.propertyAddress,
-          googleMapsUrl: lead.googleMapsUrl,
-          propertyPerimeterM: lead.propertyPerimeterM,
-          propertyAreaM2: lead.propertyAreaM2,
-          propertyStoreys: lead.propertyStoreys,
+    // Fire-and-forget email to eligible subcontractors
+    ;(async () => {
+      try {
+        const recipients = await prisma.user.findMany({
+          where: { campaignId: campaign.id, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
+          select: { email: true },
         })
+        if (recipients.length > 0) {
+          await sendNewLeadEmail({
+            to: recipients.map(r => r.email),
+            quoteNumber,
+            customerName: lead.customerName,
+            customerPhone: lead.customerPhone,
+            propertyAddress: lead.propertyAddress,
+            googleMapsUrl: lead.googleMapsUrl,
+            propertyPerimeterM: lead.propertyPerimeterM,
+            propertyAreaM2: lead.propertyAreaM2,
+            propertyStoreys: lead.propertyStoreys,
+          })
+        }
+      } catch (err) {
+        console.error('New lead email failed:', err)
       }
-    } catch (err) {
-      console.error('New lead email failed:', err)
-    }
-  })()
+    })()
 
-  if (missingFields.length > 0) {
+    if (missingFields.length > 0) {
+      return NextResponse.json({
+        success: true,
+        quote_number: quoteNumber,
+        message: 'Lead created with missing fields — flagged for review',
+        missing_fields: missingFields,
+      })
+    }
+
     return NextResponse.json({
       success: true,
       quote_number: quoteNumber,
-      message: 'Lead created with missing fields — flagged for review',
-      missing_fields: missingFields,
+      message: 'Lead created successfully',
     })
+  } catch (err) {
+    console.error('Webhook lead creation failed:', err, 'Payload:', JSON.stringify(raw))
+    return NextResponse.json(
+      { success: false, message: 'Internal server error — lead not created' },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json({
-    success: true,
-    quote_number: quoteNumber,
-    message: 'Lead created successfully',
-  })
 }
