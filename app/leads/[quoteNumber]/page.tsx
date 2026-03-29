@@ -77,14 +77,20 @@ export default async function LeadDetailPage({
               </div>
               <div className="flex justify-between">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Phone</dt>
-                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.customerPhone}</dd>
+                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">
+                  {lead.customerPhone
+                    ? <a href={`tel:${lead.customerPhone}`} className="text-[#2563EB] dark:text-[#3B82F6] hover:underline">{lead.customerPhone}</a>
+                    : '—'}
+                </dd>
               </div>
-              {lead.customerEmail && (
-                <div className="flex justify-between">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Email</dt>
-                  <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.customerEmail}</dd>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Email</dt>
+                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">
+                  {lead.customerEmail
+                    ? <a href={`mailto:${lead.customerEmail}`} className="text-[#2563EB] dark:text-[#3B82F6] hover:underline">{lead.customerEmail}</a>
+                    : '—'}
+                </dd>
+              </div>
               <div className="flex justify-between items-start gap-4">
                 <dt className="text-[#6B7280] dark:text-[#94A3B8] shrink-0">Address</dt>
                 <dd className="font-medium text-[#111827] dark:text-[#F1F5F9] text-right">{lead.propertyAddress}</dd>

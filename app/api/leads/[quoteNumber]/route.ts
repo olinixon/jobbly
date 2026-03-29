@@ -28,6 +28,12 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Strip sensitive fields for subcontractor role
+  if (session.user.role === 'SUBCONTRACTOR') {
+    const { customerPhone: _p, customerEmail: _e, ...safeFields } = lead
+    return NextResponse.json(safeFields)
+  }
+
   return NextResponse.json(lead)
 }
 
