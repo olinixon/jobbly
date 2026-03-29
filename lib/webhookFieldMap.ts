@@ -22,6 +22,7 @@ export const webhookFieldMap: Record<string, string> = {
   call_id: 'call_id',
   call_timestamp: 'call_timestamp',
   timestamp: 'call_timestamp',
+  notes: 'notes',
 }
 
 export function mapWebhookPayload(raw: Record<string, unknown>): Record<string, unknown> {

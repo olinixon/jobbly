@@ -26,7 +26,6 @@ interface LeadActionsProps {
   quoteNumber: string
   currentStatus: string
   hasInvoice: boolean
-  notes: string
   markupPercentage: number
   customerName?: string
   propertyAddress?: string
@@ -57,7 +56,7 @@ function fmtBytes(b: number) {
 }
 
 export default function LeadActions({
-  quoteNumber, currentStatus, hasInvoice, notes, markupPercentage, customerName, propertyAddress,
+  quoteNumber, currentStatus, hasInvoice, markupPercentage, customerName, propertyAddress,
 }: LeadActionsProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -66,7 +65,6 @@ export default function LeadActions({
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showRevertModal, setShowRevertModal] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
-  const [showNotesModal, setShowNotesModal] = useState(false)
   const [showReplaceQuoteModal, setShowReplaceQuoteModal] = useState(false)
   const [quoteFile, setQuoteFile] = useState<File | null>(null)
   const [quoteDragOver, setQuoteDragOver] = useState(false)
@@ -77,7 +75,6 @@ export default function LeadActions({
   const [quoteMismatch, setQuoteMismatch] = useState<{ extracted_name: string | null; extracted_address: string | null } | null>(null)
   const [reverting, setReverting] = useState(false)
   const [revertError, setRevertError] = useState('')
-  const [notesValue, setNotesValue] = useState(notes)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -334,18 +331,6 @@ export default function LeadActions({
     setEditMode(false)
   }
 
-  async function saveNotes() {
-    setSaving(true)
-    await fetch(`/api/leads/${quoteNumber}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notes: notesValue }),
-    })
-    setSaving(false)
-    setShowNotesModal(false)
-    router.refresh()
-  }
-
   const confirmDisabled = saving || (nextStatus === 'JOB_COMPLETED' && !hasInvoice) || (isBookingStep && bookedDateFilled && !bookedDateValid)
 
   return (
@@ -368,7 +353,6 @@ export default function LeadActions({
               {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => setShowNotesModal(true)}>Edit Notes</Button>
         </div>
         {previousStatus && (
           <div className="mt-4 pt-4 border-t border-[#F3F4F6] dark:border-[#334155]">
@@ -574,23 +558,6 @@ export default function LeadActions({
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setShowRevertModal(false)}>Cancel</Button>
             <Button onClick={revertStatus} disabled={reverting}>{reverting ? 'Reverting…' : 'Confirm Revert'}</Button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Notes modal */}
-      {showNotesModal && (
-        <Modal title="Edit Notes" onClose={() => setShowNotesModal(false)}>
-          <textarea
-            value={notesValue}
-            onChange={(e) => setNotesValue(e.target.value)}
-            rows={5}
-            className="w-full text-sm px-3 py-2 border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB] mb-4 resize-none"
-            placeholder="Add notes about this lead…"
-          />
-          <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setShowNotesModal(false)}>Cancel</Button>
-            <Button onClick={saveNotes} disabled={saving}>{saving ? 'Saving…' : 'Save Notes'}</Button>
           </div>
         </Modal>
       )}

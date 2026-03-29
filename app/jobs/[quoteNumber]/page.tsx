@@ -5,8 +5,18 @@ import AppShell from '@/components/layout/AppShell'
 import Badge from '@/components/ui/Badge'
 import LeadStatusPipeline from '@/components/leads/LeadStatusPipeline'
 import JobActions from '@/components/leads/JobActions'
+import ManualQuoteOptions from '@/components/leads/ManualQuoteOptions'
 import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
+
+interface QuoteOptionRow {
+  sort_order: number
+  name: string
+  price_ex_gst: number | null
+  price_incl_gst: number | null
+  duration_minutes: number | null
+  job_type_id: string | null
+}
 
 export default async function JobDetailPage({
   params,
@@ -115,10 +125,39 @@ export default async function JobDetailPage({
             </dl>
           </div>
 
-          {/* Notes (read-only, hidden if empty) */}
+          {/* Quote Options — parsing badge + manual entry */}
+          {job.quoteUrl && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Quote Options</h2>
+              {(() => {
+                const opts = Array.isArray(job.quoteOptions) ? (job.quoteOptions as unknown as QuoteOptionRow[]) : []
+                const count = opts.length
+                return (
+                  <>
+                    <div className="mb-3">
+                      {count > 0 ? (
+                        <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
+                          ✅ {count} {count === 1 ? 'option' : 'options'} parsed from quote
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">
+                          ⚠️ Quote could not be parsed — customer will see all service options
+                        </div>
+                      )}
+                    </div>
+                    {count === 0 && jobTypes.length > 0 && (
+                      <ManualQuoteOptions quoteNumber={job.quoteNumber} jobTypes={jobTypes} />
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Call Notes (read-only, hidden if empty) */}
           {job.notes && (
             <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
-              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Notes</h2>
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Call Notes</h2>
               <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] whitespace-pre-wrap">{job.notes}</p>
             </div>
           )}

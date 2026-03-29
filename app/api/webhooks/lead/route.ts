@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
   const storeyCount = toStringOrNull(mapped['storey_count'])
   const contractorRate = toFloatOrNull(mapped['contractor_rate'])
   const callTimestamp = toStringOrNull(mapped['call_timestamp'])
+  const incomingNotes = toStringOrNull(mapped['notes'])
 
   const missingFields: string[] = []
   if (!customerName) missingFields.push('customer_name')
@@ -106,11 +107,14 @@ export async function POST(request: NextRequest) {
         source: 'n8n_webhook',
         webhookRaw: JSON.stringify(raw),
         needsReview: missingFields.length > 0,
-        notes: missingFields.length > 0
-          ? `Received while campaign ${campaign.status === 'PAUSED' ? 'paused. ' : ''}Missing fields: ${missingFields.join(', ')}`
-          : campaign.status === 'PAUSED'
-          ? 'Received while campaign paused.'
-          : null,
+        notes: (() => {
+          const systemNote = missingFields.length > 0
+            ? `Missing fields: ${missingFields.join(', ')}${campaign.status === 'PAUSED' ? ' (received while campaign paused)' : ''}`
+            : campaign.status === 'PAUSED'
+            ? 'Received while campaign paused.'
+            : null
+          return [incomingNotes, systemNote].filter(Boolean).join('\n\n') || null
+        })(),
         createdAt: callTimestamp ? new Date(callTimestamp) : new Date(),
       },
     })

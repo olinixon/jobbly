@@ -108,6 +108,7 @@ model Lead {
   jobCompletedAt        DateTime?
   reconciliationBatchId String?
   notes                 String?
+  internal_notes        String?
   quoteOptions                Json?      // Array of AI-parsed quote options — see ParsedQuoteOption in lib/parseQuotePdf.ts
   quoteValidationOverridden   Boolean?   @default(false)
   needsReview                 Boolean    @default(false)

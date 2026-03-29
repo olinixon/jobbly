@@ -5,6 +5,8 @@ import AppShell from '@/components/layout/AppShell'
 import Badge from '@/components/ui/Badge'
 import LeadStatusPipeline from '@/components/leads/LeadStatusPipeline'
 import LeadActions from '@/components/leads/LeadActions'
+import InternalNotesEditor from '@/components/leads/InternalNotesEditor'
+import ManualQuoteOptions from '@/components/leads/ManualQuoteOptions'
 import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
 
@@ -49,6 +51,14 @@ export default async function LeadDetailPage({
   const isAdmin = session.user.role === 'ADMIN'
   const isClient = session.user.role === 'CLIENT'
   const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
+
+  const jobTypes = isAdmin
+    ? await prisma.jobType.findMany({
+        where: { campaignId: lead.campaignId },
+        orderBy: { sortOrder: 'asc' },
+        select: { id: true, name: true, sortOrder: true, durationMinutes: true },
+      })
+    : []
 
   return (
     <AppShell>
@@ -210,6 +220,16 @@ export default async function LeadDetailPage({
                     </tbody>
                   </table>
                 </div>
+              ) : isAdmin && jobTypes.length > 0 ? (
+                <div className="mt-3">
+                  <p className="text-sm text-[#9CA3AF] dark:text-[#475569] mb-3">No options parsed from quote.</p>
+                  <details>
+                    <summary className="text-sm text-[#2563EB] dark:text-[#3B82F6] cursor-pointer hover:underline">Enter manually</summary>
+                    <div className="mt-3">
+                      <ManualQuoteOptions quoteNumber={lead.quoteNumber} jobTypes={jobTypes} />
+                    </div>
+                  </details>
+                </div>
               ) : (
                 <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">Quote not yet parsed.</p>
               )}
@@ -218,16 +238,23 @@ export default async function LeadDetailPage({
 
           {/* Notes */}
           {isAdmin && (
-            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
-              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Notes</h2>
-              <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] whitespace-pre-wrap min-h-12">
-                {lead.notes ?? 'No notes yet.'}
-              </p>
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm space-y-5">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9]">Notes</h2>
+              <div>
+                <p className="text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-1">Call Notes</p>
+                <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] whitespace-pre-wrap min-h-8">
+                  {lead.notes ?? <span className="text-[#9CA3AF] dark:text-[#475569] italic">None</span>}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-1">Internal Notes</p>
+                <InternalNotesEditor quoteNumber={lead.quoteNumber} initialValue={lead.internal_notes ?? ''} />
+              </div>
             </div>
           )}
           {isClient && lead.notes && (
             <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
-              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Notes</h2>
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Call Notes</h2>
               <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] whitespace-pre-wrap">{lead.notes}</p>
             </div>
           )}
@@ -241,7 +268,6 @@ export default async function LeadDetailPage({
               quoteNumber={lead.quoteNumber}
               currentStatus={lead.status}
               hasInvoice={!!lead.invoiceUrl}
-              notes={lead.notes ?? ''}
               markupPercentage={lead.campaign.markupPercentage}
               customerName={lead.customerName}
               propertyAddress={lead.propertyAddress}
