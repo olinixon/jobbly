@@ -66,10 +66,26 @@ export async function POST(
   const slotDate = booking.slot.date
 
   await prisma.$transaction(async (tx) => {
-    // Confirm the booking
-    await tx.booking.update({
-      where: { id: booking.id },
-      data: { status: 'CONFIRMED', heldUntil: null, heldByToken: null },
+    // Upsert the booking to CONFIRMED — handles both the held booking update and edge cases
+    await tx.booking.upsert({
+      where: { leadId: lead.id },
+      update: {
+        slotId,
+        windowStart,
+        windowEnd,
+        status: 'CONFIRMED',
+        bookedAt: new Date(),
+        heldUntil: null,
+        heldByToken: null,
+      },
+      create: {
+        slotId,
+        leadId: lead.id,
+        windowStart,
+        windowEnd,
+        status: 'CONFIRMED',
+        bookedAt: new Date(),
+      },
     })
 
     // Update lead — status stays JOB_BOOKED for reschedule, or moves to it for initial
