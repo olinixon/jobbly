@@ -24,6 +24,7 @@ interface BookingSlotPickerProps {
   initialSlots: Slot[]
   isReschedule?: boolean
   oldBooking?: { date: string; window_start: string; window_end: string }
+  onConfirmed?: () => void
 }
 
 function fmt12h(t: string): string {
@@ -51,7 +52,7 @@ function formatCountdown(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-export default function BookingSlotPicker({ token, jobTypeName, durationMinutes, initialSlots, jobTypeId, isReschedule, oldBooking }: BookingSlotPickerProps) {
+export default function BookingSlotPicker({ token, jobTypeName, durationMinutes, initialSlots, jobTypeId, isReschedule, oldBooking, onConfirmed }: BookingSlotPickerProps) {
   const [slots, setSlots] = useState<Slot[]>(initialSlots)
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [selectedWindow, setSelectedWindow] = useState<{ windowStart: string; windowEnd: string } | null>(null)
@@ -170,6 +171,7 @@ export default function BookingSlotPicker({ token, jobTypeName, durationMinutes,
       }
 
       setConfirmed({ bookingDate: data.bookingDate, windowStart: data.windowStart, windowEnd: data.windowEnd })
+      onConfirmed?.()
     } catch {
       setError('Something went wrong. Please try again.')
     }
@@ -192,6 +194,7 @@ export default function BookingSlotPicker({ token, jobTypeName, durationMinutes,
           <div className="flex justify-between text-sm"><span className="text-[#6B7280]">Job type</span><span className="font-medium text-[#111827]">{jobTypeName}</span></div>
         </div>
         <p className="text-sm text-[#6B7280] mt-4">We'll see you then. If you need to make any changes, please contact us.</p>
+        <p className="text-xs text-[#9CA3AF] mt-3">You're all set — you can close this tab now.</p>
       </div>
     )
   }

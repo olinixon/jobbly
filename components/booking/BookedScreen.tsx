@@ -167,6 +167,8 @@ export default function BookedScreen({
           {rescheduling ? 'Processing…' : 'Need to change your time? Reschedule my booking'}
         </button>
       </div>
+
+      <p className="text-xs text-[#A1A1AA] mt-3">You're all set — you can close this tab now.</p>
     </div>
   )
 }

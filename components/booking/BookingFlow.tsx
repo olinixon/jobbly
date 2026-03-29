@@ -40,6 +40,7 @@ export default function BookingFlow({
   const options = quoteOptions ?? fallbackOptions
   const [selectedOption, setSelectedOption] = useState<QuoteOption | null>(initialSelectedOption ?? null)
   const [step, setStep] = useState<'options' | 'slots'>(initialSelectedOption ? 'options' : 'options')
+  const [bookingConfirmed, setBookingConfirmed] = useState(false)
 
   function handleContinue() {
     if (selectedOption) setStep('slots')
@@ -56,12 +57,14 @@ export default function BookingFlow({
         <div className="bg-white rounded-2xl border border-[#E4E4E7] p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-[#18181b]">Your selection</h2>
-            <button
-              onClick={handleBack}
-              className="text-sm text-[#2563EB] hover:underline"
-            >
-              ← Change
-            </button>
+            {!bookingConfirmed && (
+              <button
+                onClick={handleBack}
+                className="text-sm text-[#2563EB] hover:underline"
+              >
+                ← Change
+              </button>
+            )}
           </div>
           <p className="text-sm font-medium text-[#18181b]">{selectedOption.name}</p>
           {selectedOption.price_incl_gst != null && (
@@ -81,6 +84,7 @@ export default function BookingFlow({
             jobTypeId={selectedOption.job_type_id ?? undefined}
             isReschedule={isReschedule}
             oldBooking={oldBooking}
+            onConfirmed={() => setBookingConfirmed(true)}
           />
         </div>
       </div>
