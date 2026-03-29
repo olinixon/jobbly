@@ -120,19 +120,17 @@ export async function POST(request: NextRequest) {
       try {
         const recipients = await prisma.user.findMany({
           where: { campaignId: campaign.id, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
-          select: { email: true },
+          select: { email: true, name: true },
         })
         if (recipients.length > 0) {
           await sendNewLeadEmail({
-            to: recipients.map(r => r.email),
+            recipients,
             quoteNumber,
             customerName: lead.customerName,
-            customerPhone: lead.customerPhone,
             propertyAddress: lead.propertyAddress,
             googleMapsUrl: lead.googleMapsUrl,
-            propertyPerimeterM: lead.propertyPerimeterM,
-            propertyAreaM2: lead.propertyAreaM2,
-            propertyStoreys: lead.propertyStoreys,
+            storeyCount: lead.storey_count,
+            gutterGuards: lead.gutter_guards,
           })
         }
       } catch (err) {

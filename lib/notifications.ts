@@ -54,52 +54,66 @@ function statRow(label: string, value: string): string {
 
 // ─── New Lead Email ──────────────────────────────────────────────────────────
 
+interface NewLeadRecipient {
+  email: string
+  name: string | null
+}
+
 interface NewLeadEmailParams {
-  to: string | string[]
+  recipients: NewLeadRecipient[]
   quoteNumber: string
   customerName: string
-  customerPhone: string
   propertyAddress: string
   googleMapsUrl: string
-  propertyPerimeterM?: number | null
-  propertyAreaM2?: number | null
-  propertyStoreys?: number | null
+  storeyCount?: string | null
+  gutterGuards?: string | null
+}
+
+function extractFirstName(name: string | null | undefined): string {
+  if (!name || name.trim() === '') return 'Hi there,'
+  const first = name.trim().split(' ')[0]
+  return `Hi ${first},`
 }
 
 export async function sendNewLeadEmail(params: NewLeadEmailParams) {
   const appUrl = APP_URL()
   const jobUrl = `${appUrl}/jobs/${params.quoteNumber}`
 
-  const html = emailShell(`
-    <tr><td style="padding:40px 40px 24px;">
-      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">New job lead</h1>
-      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">A new lead has come in from the AI campaign.</p>
-      ${card(`
-        <div style="font-size:22px;font-weight:700;color:#2563eb;margin-bottom:2px;">${params.quoteNumber}</div>
-        <div style="font-size:18px;font-weight:600;color:#18181b;margin-bottom:16px;">${params.customerName}</div>
-        <table width="100%" cellpadding="0" cellspacing="0">
-          ${row('Phone', `<a href="tel:${params.customerPhone}" style="color:#2563eb;">${params.customerPhone}</a>`)}
-          ${row('Address', params.propertyAddress)}
-        </table>
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:1px solid #e4e4e7;padding-top:16px;">
-          <tr>
-            ${statRow('Perimeter', params.propertyPerimeterM ? `${params.propertyPerimeterM}m` : 'N/A')}
-            ${statRow('Area', params.propertyAreaM2 ? `${params.propertyAreaM2}m²` : 'N/A')}
-            ${statRow('Storeys', params.propertyStoreys != null ? String(params.propertyStoreys) : 'N/A')}
-          </tr>
-        </table>
-      `)}
-      <div style="margin-bottom:12px;">${primaryButton(jobUrl, 'View Job in Jobbly')}</div>
-      <div>${secondaryButton(params.googleMapsUrl, 'Open in Google Maps')}</div>
-    </td></tr>
-  `)
+  const sends = params.recipients.map((recipient) => {
+    const greeting = extractFirstName(recipient.name)
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM!,
-    to: params.to,
-    subject: `New job — ${params.quoteNumber} — ${params.customerName}`,
-    html,
+    const html = emailShell(`
+      <tr><td style="padding:40px 40px 24px;">
+        <p style="margin:0 0 6px;font-size:18px;font-weight:600;color:#18181b;">${greeting}</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#71717a;">A new lead has come in from the AI campaign. Here are the details:</p>
+        ${card(`
+          <div style="font-size:22px;font-weight:700;color:#2563eb;margin-bottom:2px;">${params.quoteNumber}</div>
+          <div style="font-size:18px;font-weight:600;color:#18181b;margin-bottom:16px;">${params.customerName}</div>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${row('Address', params.propertyAddress)}
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:1px solid #e4e4e7;padding-top:16px;">
+            <tr>
+              ${statRow('Storeys', params.storeyCount ?? 'Not specified')}
+              ${statRow('Gutter Guards', params.gutterGuards ?? 'Not specified')}
+            </tr>
+          </table>
+        `)}
+        <p style="margin:0 0 20px;font-size:14px;color:#71717a;">Please generate a quote for this customer and upload it to the job in Jobbly.</p>
+        <div style="margin-bottom:12px;">${primaryButton(jobUrl, 'View Job in Jobbly')}</div>
+        <div>${secondaryButton(params.googleMapsUrl, 'Open in Google Maps')}</div>
+      </td></tr>
+    `)
+
+    return resend.emails.send({
+      from: process.env.EMAIL_FROM!,
+      to: recipient.email,
+      subject: `New job — ${params.quoteNumber} — ${params.customerName}`,
+      html,
+    })
   })
+
+  await Promise.all(sends)
 }
 
 // ─── Password Reset Email ─────────────────────────────────────────────────────
