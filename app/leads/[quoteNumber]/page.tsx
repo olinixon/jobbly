@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
 import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
 import AddToCalendarDropdown from '@/components/leads/AddToCalendarDropdown'
+import DeleteLeadButton from '@/components/leads/DeleteLeadButton'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -465,6 +466,12 @@ export default async function LeadDetailPage({
           )}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="mt-8 pt-6 border-t border-[#F3F4F6] dark:border-[#334155] flex justify-end">
+          <DeleteLeadButton quoteNumber={lead.quoteNumber} customerName={lead.customerName} />
+        </div>
+      )}
     </AppShell>
   )
 }

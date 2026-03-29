@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { sendJobCompletedEmail } from '@/lib/notifications'
+import { deleteFile } from '@/lib/fileStorage'
 
 const STATUS_ORDER = ['LEAD_RECEIVED', 'QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED'] as const
 type LeadStatus = typeof STATUS_ORDER[number]
@@ -183,4 +184,42 @@ export async function PATCH(
 
   const updated = await prisma.lead.findUnique({ where: { quoteNumber } })
   return NextResponse.json(updated)
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ quoteNumber: string }> }
+) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (session.user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { quoteNumber } = await params
+  const lead = await prisma.lead.findUnique({ where: { quoteNumber } })
+  if (!lead) return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 })
+
+  if (lead.campaignId !== session.user.campaignId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Best-effort R2 file cleanup — failures are logged but do not block deletion
+  const filesToDelete = [lead.quoteUrl, lead.invoiceUrl].filter(Boolean) as string[]
+  for (const url of filesToDelete) {
+    try {
+      await deleteFile(url)
+    } catch (err) {
+      console.error(`Failed to delete file ${url}:`, err)
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.booking.deleteMany({ where: { leadId: lead.id } }),
+    prisma.auditLog.deleteMany({ where: { leadId: lead.id } }),
+    prisma.attachment.deleteMany({ where: { leadId: lead.id } }),
+    prisma.lead.delete({ where: { id: lead.id } }),
+  ])
+
+  return NextResponse.json({ success: true, message: 'Lead deleted' })
 }
