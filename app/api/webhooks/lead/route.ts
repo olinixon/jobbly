@@ -71,9 +71,11 @@ export async function POST(request: NextRequest) {
   if (!customerPhone) missingFields.push('customer_phone')
   if (!propertyAddress) missingFields.push('property_address')
 
-  // Use the incoming quote number if provided, otherwise auto-generate
-  const quoteNumber = mapped['quote_number'] && String(mapped['quote_number']).trim()
-    ? String(mapped['quote_number']).trim()
+  // Use the incoming quote number if valid — guard against unevaluated n8n template expressions
+  const rawQuoteNumber = mapped['quote_number']
+  const isTemplate = typeof rawQuoteNumber === 'string' && rawQuoteNumber.includes('{{')
+  const quoteNumber = (rawQuoteNumber && !isTemplate)
+    ? String(rawQuoteNumber).trim()
     : await generateQuoteNumber(campaign.id)
   const googleMapsUrl = propertyAddress ? generateMapsUrl(propertyAddress) : ''
 
