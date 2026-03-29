@@ -99,7 +99,7 @@ export async function sendNewLeadEmail(params: NewLeadEmailParams) {
     const html = emailShell(`
       <tr><td style="padding:40px 40px 24px;">
         <p style="margin:0 0 6px;font-size:18px;font-weight:600;color:#18181b;">${greeting}</p>
-        <p style="margin:0 0 24px;font-size:15px;color:#71717a;">A new lead has come in from the AI campaign. Here are the details:</p>
+        <p style="margin:0 0 24px;font-size:15px;color:#71717a;">A new lead has come in from the reactivation campaign. Here are the details:</p>
         ${card(`
           <div style="font-size:22px;font-weight:700;color:#2563eb;margin-bottom:2px;">${params.quoteNumber}</div>
           <div style="font-size:18px;font-weight:600;color:#18181b;margin-bottom:16px;">${params.customerName}</div>
