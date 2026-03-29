@@ -93,7 +93,12 @@ export default function BookingSlotPicker({ token, jobTypeName, durationMinutes,
     } catch {
       // ignore
     }
-  }, [token])
+  }, [token, jobTypeId])
+
+  // Fetch slots on mount (and whenever jobTypeId changes)
+  useEffect(() => {
+    refreshSlots()
+  }, [refreshSlots])
 
   async function selectWindow(slotId: string, window: Window) {
     if (!window.available) return
