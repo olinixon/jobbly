@@ -17,6 +17,7 @@ interface Slot {
 }
 
 interface BookingSlotPickerProps {
+  jobTypeId?: string
   token: string
   jobTypeName: string
   durationMinutes: number
@@ -48,7 +49,7 @@ function formatCountdown(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-export default function BookingSlotPicker({ token, jobTypeName, durationMinutes, initialSlots }: BookingSlotPickerProps) {
+export default function BookingSlotPicker({ token, jobTypeName, durationMinutes, initialSlots, jobTypeId }: BookingSlotPickerProps) {
   const [slots, setSlots] = useState<Slot[]>(initialSlots)
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [selectedWindow, setSelectedWindow] = useState<{ windowStart: string; windowEnd: string } | null>(null)
@@ -81,7 +82,8 @@ export default function BookingSlotPicker({ token, jobTypeName, durationMinutes,
 
   const refreshSlots = useCallback(async () => {
     try {
-      const res = await fetch(`/api/book/${token}/slots`)
+      const slotsUrl = jobTypeId ? `/api/book/${token}/slots?job_type_id=${jobTypeId}` : `/api/book/${token}/slots`
+      const res = await fetch(slotsUrl)
       if (res.ok) {
         const data = await res.json()
         setSlots(data.slots)
@@ -130,7 +132,7 @@ export default function BookingSlotPicker({ token, jobTypeName, durationMinutes,
       const res = await fetch(`/api/book/${token}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId: selectedSlotId, ...selectedWindow }),
+        body: JSON.stringify({ slotId: selectedSlotId, ...selectedWindow, job_type_id: jobTypeId ?? null }),
       })
       const data = await res.json()
 

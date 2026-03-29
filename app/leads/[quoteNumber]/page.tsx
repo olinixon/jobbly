@@ -8,6 +8,15 @@ import LeadActions from '@/components/leads/LeadActions'
 import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
 
+interface QuoteOptionRow {
+  sort_order: number
+  name: string
+  price_ex_gst: number
+  price_incl_gst: number
+  duration_minutes: number | null
+  job_type_id: string | null
+}
+
 export default async function LeadDetailPage({
   params,
   searchParams,
@@ -140,6 +149,49 @@ export default async function LeadDetailPage({
               </div>
             </dl>
           </div>
+
+          {/* Quote Options */}
+          {lead.quoteUrl && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Quote Options</h2>
+              {Array.isArray(lead.quoteOptions) && (lead.quoteOptions as unknown as QuoteOptionRow[]).length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#E5E7EB] dark:border-[#334155]">
+                        <th className="text-left py-2 text-[#6B7280] dark:text-[#94A3B8] font-normal">#</th>
+                        <th className="text-left py-2 text-[#6B7280] dark:text-[#94A3B8] font-normal">Service</th>
+                        <th className="text-right py-2 text-[#6B7280] dark:text-[#94A3B8] font-normal">Ex GST</th>
+                        <th className="text-right py-2 text-[#6B7280] dark:text-[#94A3B8] font-normal">Incl. GST</th>
+                        <th className="text-right py-2 text-[#6B7280] dark:text-[#94A3B8] font-normal">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(lead.quoteOptions as unknown as QuoteOptionRow[]).map((opt) => {
+                        const isSelected = lead.jobTypeId === opt.job_type_id
+                        return (
+                          <tr key={opt.sort_order} className={`border-b border-[#F3F4F6] dark:border-[#1E293B] ${isSelected ? 'bg-green-50 dark:bg-green-900/10' : ''}`}>
+                            <td className="py-2 text-[#6B7280] dark:text-[#94A3B8]">{opt.sort_order}</td>
+                            <td className="py-2 font-medium text-[#111827] dark:text-[#F1F5F9]">
+                              {opt.name}
+                              {isSelected && <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">Customer selected</span>}
+                            </td>
+                            <td className="py-2 text-right text-[#111827] dark:text-[#F1F5F9]">${opt.price_ex_gst.toFixed(2)}</td>
+                            <td className="py-2 text-right text-[#111827] dark:text-[#F1F5F9]">${opt.price_incl_gst.toFixed(2)}</td>
+                            <td className="py-2 text-right text-[#6B7280] dark:text-[#94A3B8]">
+                              {opt.duration_minutes ? `${Math.floor(opt.duration_minutes / 60)} hrs` : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">Quote not yet parsed.</p>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           {isAdmin && (

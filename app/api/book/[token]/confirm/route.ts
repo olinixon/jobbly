@@ -19,7 +19,7 @@ export async function POST(
 ) {
   const { token } = await params
   const body = await request.json()
-  const { slotId, windowStart, windowEnd } = body
+  const { slotId, windowStart, windowEnd, job_type_id } = body
 
   if (!slotId || !windowStart || !windowEnd) {
     return NextResponse.json({ error: 'slotId, windowStart, and windowEnd are required' }, { status: 400 })
@@ -70,7 +70,7 @@ export async function POST(
     // Update lead status
     await tx.lead.update({
       where: { id: lead.id },
-      data: { status: 'JOB_BOOKED', jobBookedDate: slotDate },
+      data: { status: 'JOB_BOOKED', jobBookedDate: slotDate, jobTypeId: job_type_id ?? null },
     })
 
     // Write audit log — find any admin user for the campaign as the actor (booking is a customer action)

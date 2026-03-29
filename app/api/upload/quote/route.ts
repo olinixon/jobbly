@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { saveFile } from '@/lib/fileStorage'
 import { sendQuoteEmail, sendMissingEmailAlert } from '@/lib/notifications'
+import { parseQuotePdf } from '@/lib/parseQuotePdf'
 import { randomUUID } from 'crypto'
 
 const MAX_SIZE = 10 * 1024 * 1024
@@ -15,10 +16,9 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   const quoteNumber = formData.get('quoteNumber') as string | null
-  const jobTypeId = formData.get('jobTypeId') as string | null
 
-  if (!file || !quoteNumber || !jobTypeId) {
-    return NextResponse.json({ error: 'Missing file, quoteNumber or jobTypeId' }, { status: 400 })
+  if (!file || !quoteNumber) {
+    return NextResponse.json({ error: 'Missing file or quoteNumber' }, { status: 400 })
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: 'File must be under 10MB.' }, { status: 400 })
@@ -39,9 +39,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Quote can only be uploaded for a lead in Lead Received status.' }, { status: 400 })
   }
 
-  const jobType = await prisma.jobType.findFirst({ where: { id: jobTypeId, campaignId: lead.campaignId } })
-  if (!jobType) return NextResponse.json({ error: 'Invalid job type' }, { status: 400 })
-
   const buffer = Buffer.from(await file.arrayBuffer())
   const fileName = `quote-${quoteNumber}-${Date.now()}.pdf`
 
@@ -51,6 +48,17 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
   }
+
+  // Fetch campaign job types for matching
+  const campaignJobTypes = await prisma.jobType.findMany({
+    where: { campaignId: lead.campaignId },
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true, name: true, durationMinutes: true, sortOrder: true },
+  })
+
+  // Run AI parsing — best effort, never blocks upload
+  const pdfBase64 = buffer.toString('base64')
+  const parsedOptions = await parseQuotePdf(pdfBase64, campaignJobTypes)
 
   const bookingToken = randomUUID()
   const now = new Date()
@@ -62,7 +70,8 @@ export async function POST(request: NextRequest) {
         quoteUrl,
         quoteUploadedAt: now,
         quoteUploadedBy: session.user.name ?? session.user.id,
-        jobTypeId,
+        quoteOptions: parsedOptions.length > 0 ? (parsedOptions as object[]) : undefined,
+        // jobTypeId intentionally NOT set here — set at booking confirmation
         status: 'QUOTE_SENT',
         bookingToken,
       },
@@ -79,7 +88,7 @@ export async function POST(request: NextRequest) {
     }),
   ])
 
-  // Send quote email immediately (fire-and-forget so it doesn't block the response)
+  // Send quote email (fire-and-forget)
   if (lead.customerEmail) {
     ;(async () => {
       try {
@@ -93,6 +102,7 @@ export async function POST(request: NextRequest) {
           pdfBuffer: buffer,
           pdfFileName: fileName,
           campaign: lead.campaign,
+          parsedOptions,
         })
       } catch (err) {
         console.error('Quote email send failed:', err)

@@ -18,10 +18,12 @@ function generateWindows(startTime: string, endTime: string, durationMinutes: nu
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params
+  const { searchParams } = new URL(request.url)
+  const jobTypeIdParam = searchParams.get('job_type_id')
 
   const lead = await prisma.lead.findUnique({
     where: { bookingToken: token },
@@ -32,8 +34,32 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid booking link' }, { status: 404 })
   }
 
-  if (!lead.jobType) {
-    return NextResponse.json({ error: 'No job type assigned to this lead' }, { status: 400 })
+  // Use job_type_id from query param if provided, otherwise fall back to lead's job type or default
+  let durationMinutes: number
+  let jobTypeName: string
+
+  if (jobTypeIdParam) {
+    const jobType = await prisma.jobType.findFirst({
+      where: { id: jobTypeIdParam, campaignId: lead.campaignId },
+    })
+    if (!jobType) {
+      return NextResponse.json({ error: 'Invalid job type' }, { status: 400 })
+    }
+    durationMinutes = jobType.durationMinutes
+    jobTypeName = jobType.name
+  } else if (lead.jobType) {
+    durationMinutes = lead.jobType.durationMinutes
+    jobTypeName = lead.jobType.name
+  } else {
+    const defaultJobType = await prisma.jobType.findFirst({
+      where: { campaignId: lead.campaignId },
+      orderBy: { sortOrder: 'asc' },
+    })
+    if (!defaultJobType) {
+      return NextResponse.json({ error: 'No job types configured for this campaign' }, { status: 400 })
+    }
+    durationMinutes = defaultJobType.durationMinutes
+    jobTypeName = defaultJobType.name
   }
 
   const today = new Date()
@@ -60,7 +86,6 @@ export async function GET(
   })
 
   const now = new Date()
-  const durationMinutes = lead.jobType.durationMinutes
 
   const slots = rawSlots.map(slot => {
     const windows = generateWindows(slot.startTime, slot.endTime, durationMinutes)
@@ -69,7 +94,7 @@ export async function GET(
       const confirmedBooking = slot.bookings.find(
         b => b.windowStart === w.windowStart && b.windowEnd === w.windowEnd && b.status === 'CONFIRMED'
       )
-      if (confirmedBooking) return null // hidden
+      if (confirmedBooking) return null
 
       const activeHold = slot.bookings.find(
         b =>
@@ -106,5 +131,5 @@ export async function GET(
     }
   }).filter(s => s.windows.length > 0)
 
-  return NextResponse.json({ slots, jobTypeName: lead.jobType.name, durationMinutes })
+  return NextResponse.json({ slots, jobTypeName, durationMinutes })
 }

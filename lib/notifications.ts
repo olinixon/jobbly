@@ -187,6 +187,13 @@ export async function sendJobCompletedEmail(params: JobCompletedEmailParams) {
 
 // ─── Quote Email (initial) ────────────────────────────────────────────────────
 
+interface ParsedOption {
+  sort_order: number;
+  name: string;
+  price_ex_gst: number;
+  price_incl_gst: number;
+}
+
 interface QuoteEmailParams {
   to: string
   customerName: string
@@ -197,23 +204,36 @@ interface QuoteEmailParams {
   pdfBuffer?: Buffer
   pdfFileName?: string
   campaign: { customer_from_email?: string | null; customer_from_name?: string | null }
+  parsedOptions?: ParsedOption[]
 }
 
-function buildQuoteHtml(params: QuoteEmailParams, intro: string, heading: string): string {
+function buildQuoteHtml(params: QuoteEmailParams): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const bookingUrl = `${appUrl}/book/${params.bookingToken}`
-  const exGst = params.customerPrice ?? 0
-  const inclGst = exGst * 1.15
+  const options = params.parsedOptions ?? []
+
+  let priceContent: string
+  if (options.length === 1) {
+    priceContent = row('Price', `$${options[0].price_ex_gst.toFixed(2)} + GST = $${options[0].price_incl_gst.toFixed(2)} incl. GST`)
+  } else if (options.length >= 2) {
+    priceContent = row('Options', `Your quote includes ${options.length} service options. Click the link below to view your options and book a time.`)
+  } else if (params.customerPrice) {
+    const exGst = params.customerPrice
+    const inclGst = exGst * 1.15
+    priceContent = row('Price', `$${exGst.toFixed(2)} + GST = $${inclGst.toFixed(2)} incl. GST`)
+  } else {
+    priceContent = ''
+  }
 
   return emailShell(`
     <tr><td style="padding:40px 40px 24px;">
-      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">${heading}</h1>
-      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">${intro}</p>
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">Your gutter cleaning quote</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Hi ${params.customerName}, thank you for your interest in our gutter cleaning service. Please find your quote attached.</p>
       ${card(`
         <table width="100%" cellpadding="0" cellspacing="0">
           ${row('Property', params.propertyAddress)}
           ${row('Quote number', params.quoteNumber)}
-          ${row('Price', `$${exGst.toFixed(2)} + GST = $${inclGst.toFixed(2)} incl. GST`)}
+          ${priceContent}
         </table>
       `)}
       <p style="margin:0 0 20px;font-size:14px;color:#71717a;">To book your job, click the link below and choose a time that suits you:</p>
@@ -224,11 +244,7 @@ function buildQuoteHtml(params: QuoteEmailParams, intro: string, heading: string
 }
 
 export async function sendQuoteEmail(params: QuoteEmailParams) {
-  const html = buildQuoteHtml(
-    params,
-    `Hi ${params.customerName}, thank you for your interest in our gutter cleaning service. Please find your quote attached.`,
-    'Your gutter cleaning quote'
-  )
+  const html = buildQuoteHtml(params)
 
   const payload: Parameters<typeof resend.emails.send>[0] = {
     from: getCustomerFromAddress(params.campaign),

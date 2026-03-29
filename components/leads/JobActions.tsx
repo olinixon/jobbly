@@ -274,13 +274,12 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
   }
 
   async function uploadQuote() {
-    if (!quoteFile || !selectedJobTypeId) return
+    if (!quoteFile) return
     setQuoteUploading(true)
     setQuoteFileError('')
     const fd = new FormData()
     fd.append('file', quoteFile)
     fd.append('quoteNumber', quoteNumber)
-    fd.append('jobTypeId', selectedJobTypeId)
     const res = await fetch('/api/upload/quote', { method: 'POST', body: fd })
     setQuoteUploading(false)
     if (!res.ok) {
@@ -296,7 +295,6 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
     setShowQuoteModal(false)
     setQuoteFile(null)
     setQuoteFileError('')
-    setSelectedJobTypeId('')
     setQuoteUploading(false)
     setQuoteSuccess('')
   }
@@ -446,23 +444,6 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
               )}
             </div>
 
-            {/* Job type selector */}
-            <div>
-              <label className="block text-sm font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">Job type</label>
-              <select
-                value={selectedJobTypeId}
-                onChange={e => setSelectedJobTypeId(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-              >
-                <option value="">Select a job type…</option>
-                {jobTypes.map(jt => (
-                  <option key={jt.id} value={jt.id}>{jt.name}</option>
-                ))}
-              </select>
-              {jobTypes.length === 0 && (
-                <p className="mt-1 text-xs text-[#9CA3AF]">No job types configured. Ask your admin to add job types in Settings.</p>
-              )}
-            </div>
 
             {quoteFileError && <p className="text-sm text-[#DC2626]">{quoteFileError}</p>}
             {quoteSuccess && <p className="text-sm text-[#16A34A]">{quoteSuccess}</p>}
@@ -471,7 +452,7 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
               <Button variant="secondary" onClick={closeQuoteModal}>Cancel</Button>
               <Button
                 onClick={uploadQuote}
-                disabled={!quoteFile || !selectedJobTypeId || quoteUploading || !!quoteSuccess}
+                disabled={!quoteFile || quoteUploading || !!quoteSuccess}
               >
                 {quoteUploading ? 'Uploading…' : 'Upload & Send Quote'}
               </Button>
