@@ -163,5 +163,5 @@ export async function POST(request: NextRequest) {
     })()
   }
 
-  return NextResponse.json({ ok: true, quoteUrl, bookingToken })
+  return NextResponse.json({ ok: true, quoteUrl, bookingToken, parsedOptionsCount: parsedOptions.length })
 }

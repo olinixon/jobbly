@@ -32,7 +32,7 @@ interface LeadActionsProps {
 }
 
 type UploadStep = 'drop' | 'uploading' | 'confirm' | 'fallback' | 'manual'
-type QuoteUploadStep = 'drop' | 'uploading' | 'mismatch'
+type QuoteUploadStep = 'drop' | 'uploading' | 'mismatch' | 'success'
 
 interface ParsedResult {
   fileUrl: string
@@ -73,6 +73,7 @@ export default function LeadActions({
   const [quoteUploading, setQuoteUploading] = useState(false)
   const [quoteSuccess, setQuoteSuccess] = useState('')
   const [quoteUploadStep, setQuoteUploadStep] = useState<QuoteUploadStep>('drop')
+  const [parsedOptionsCount, setParsedOptionsCount] = useState<number | null>(null)
   const [quoteMismatch, setQuoteMismatch] = useState<{ extracted_name: string | null; extracted_address: string | null; extracted_quote_number: string | null } | null>(null)
   const [reverting, setReverting] = useState(false)
   const [revertError, setRevertError] = useState('')
@@ -306,10 +307,15 @@ export default function LeadActions({
       setQuoteUploadStep('drop')
       return
     }
-    setQuoteSuccess(quoteModalIsReplace
-      ? "Quote replaced successfully. The customer's booking link now points to the updated quote."
-      : "Quote uploaded successfully. The customer has been emailed with their quote and booking link.")
-    setTimeout(() => { closeReplaceQuoteModal(); router.refresh() }, 2000)
+    if (quoteModalIsReplace) {
+      setQuoteSuccess("Quote replaced successfully. The customer's booking link now points to the updated quote.")
+      setTimeout(() => { closeReplaceQuoteModal(); router.refresh() }, 2000)
+    } else {
+      const d = await res.json()
+      setParsedOptionsCount(typeof d.parsedOptionsCount === 'number' ? d.parsedOptionsCount : null)
+      setQuoteUploadStep('success')
+      setTimeout(() => { closeReplaceQuoteModal(); router.refresh() }, 2000)
+    }
   }
 
   function closeReplaceQuoteModal() {
@@ -320,6 +326,7 @@ export default function LeadActions({
     setQuoteSuccess('')
     setQuoteUploadStep('drop')
     setQuoteMismatch(null)
+    setParsedOptionsCount(null)
   }
 
   function closeInvoiceModal() {
@@ -580,6 +587,24 @@ export default function LeadActions({
             <div className="py-12 flex flex-col items-center gap-4">
               <div className="w-10 h-10 border-4 border-[#E5E7EB] dark:border-[#334155] border-t-[#2563EB] rounded-full animate-spin" />
               <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">Uploading and validating quote…</p>
+            </div>
+          )}
+
+          {quoteUploadStep === 'success' && (
+            <div className="py-10 flex flex-col items-center gap-3 text-center">
+              <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <p className="text-lg font-semibold text-green-700 dark:text-green-400">Quote approved</p>
+              <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">The quote details match this customer.</p>
+              {parsedOptionsCount !== null && parsedOptionsCount > 0 ? (
+                <>
+                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">{parsedOptionsCount} pricing option{parsedOptionsCount !== 1 ? 's' : ''} found.</p>
+                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">The quote has been sent to the customer.</p>
+                </>
+              ) : (
+                <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Quote sent to customer — pricing options could not be read automatically.</p>
+              )}
             </div>
           )}
 
