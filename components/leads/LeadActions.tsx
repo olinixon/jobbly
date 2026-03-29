@@ -73,7 +73,7 @@ export default function LeadActions({
   const [quoteUploading, setQuoteUploading] = useState(false)
   const [quoteSuccess, setQuoteSuccess] = useState('')
   const [quoteUploadStep, setQuoteUploadStep] = useState<QuoteUploadStep>('drop')
-  const [quoteMismatch, setQuoteMismatch] = useState<{ extracted_name: string | null; extracted_address: string | null } | null>(null)
+  const [quoteMismatch, setQuoteMismatch] = useState<{ extracted_name: string | null; extracted_address: string | null; extracted_quote_number: string | null } | null>(null)
   const [reverting, setReverting] = useState(false)
   const [revertError, setRevertError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -295,7 +295,7 @@ export default function LeadActions({
     if (res.status === 422) {
       const d = await res.json()
       if (d.error === 'quote_mismatch') {
-        setQuoteMismatch({ extracted_name: d.extracted_name ?? null, extracted_address: d.extracted_address ?? null })
+        setQuoteMismatch({ extracted_name: d.extracted_name ?? null, extracted_address: d.extracted_address ?? null, extracted_quote_number: d.extracted_quote_number ?? null })
         setQuoteUploadStep('mismatch')
         return
       }
@@ -587,14 +587,21 @@ export default function LeadActions({
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl">
                 <span className="text-lg leading-none mt-0.5">❌</span>
-                <div>
-                  <p className="text-sm font-semibold text-[#111827] dark:text-[#F1F5F9] mb-1">Quote details don&apos;t match</p>
-                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">
-                    The quote appears to be for <strong>&quot;{quoteMismatch.extracted_name ?? 'unknown'}&quot;</strong> at <strong>&quot;{quoteMismatch.extracted_address ?? 'unknown'}&quot;</strong>.
-                  </p>
-                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1] mt-1">
-                    Please check you have uploaded the correct quote for <strong>{customerName}</strong> at <strong>{propertyAddress}</strong>.
-                  </p>
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-[#111827] dark:text-[#F1F5F9]">Quote details don&apos;t match</p>
+                  <div>
+                    <p className="text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-1">Found in document</p>
+                    <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Name: &quot;{quoteMismatch.extracted_name ?? 'unknown'}&quot;</p>
+                    <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Address: &quot;{quoteMismatch.extracted_address ?? 'unknown'}&quot;</p>
+                    <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Quote number: &quot;{quoteMismatch.extracted_quote_number ?? 'unknown'}&quot;</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-1">Expected</p>
+                    <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Name: {customerName}</p>
+                    <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Address: {propertyAddress}</p>
+                    <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Quote number: {quoteNumber}</p>
+                  </div>
+                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Please check you have uploaded the correct quote file.</p>
                 </div>
               </div>
               <div className="flex gap-3 justify-end">

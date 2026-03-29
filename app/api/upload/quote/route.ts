@@ -62,14 +62,16 @@ export async function POST(request: NextRequest) {
     const validation = await validateQuotePdf(pdfBase64, {
       customer_name: lead.customerName,
       property_address: lead.propertyAddress,
+      quote_number: lead.quoteNumber,
     })
     if (!validation.valid && validation.confidence === 'high') {
       return NextResponse.json({
         success: false,
         error: 'quote_mismatch',
-        message: `Quote details don't match this customer. The quote appears to be for "${validation.extracted_name}" at "${validation.extracted_address}". Please check you've uploaded the correct file.`,
+        message: `Quote details don't match this customer. Please check you've uploaded the correct file.`,
         extracted_name: validation.extracted_name,
         extracted_address: validation.extracted_address,
+        extracted_quote_number: validation.extracted_quote_number,
       }, { status: 422 })
     }
   }
