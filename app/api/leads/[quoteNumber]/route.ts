@@ -200,7 +200,7 @@ export async function DELETE(
   const lead = await prisma.lead.findUnique({ where: { quoteNumber } })
   if (!lead) return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 })
 
-  if (lead.campaignId !== session.user.campaignId) {
+  if (session.user.role !== 'ADMIN' && lead.campaignId !== session.user.campaignId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
