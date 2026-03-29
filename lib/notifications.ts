@@ -422,6 +422,53 @@ function fmt12hEmail(t: string): string {
   return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, '0')}${suffix}`
 }
 
+// ─── Booking Reschedule Confirmation (to customer) ───────────────────────────
+
+interface BookingRescheduleCustomerParams {
+  to: string
+  customerName: string
+  propertyAddress: string
+  quoteNumber: string
+  jobTypeName: string
+  newDate: string        // formatted date string
+  newWindowStart: string // e.g. "7:00am"
+  newWindowEnd: string   // e.g. "9:00am"
+  campaign: { customer_from_email?: string | null; customer_from_name?: string | null }
+  bookingToken: string
+  calendarLinks?: CalendarLinks
+}
+
+export async function sendBookingRescheduleConfirmationCustomer(params: BookingRescheduleCustomerParams) {
+  const appUrl = APP_URL()
+  const rescheduleUrl = `${appUrl}/book/${params.bookingToken}`
+
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">Booking rescheduled</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Hi ${params.customerName}, your gutter cleaning booking has been rescheduled.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Property', params.propertyAddress)}
+          ${row('Date', params.newDate)}
+          ${row('Time', `${params.newWindowStart} – ${params.newWindowEnd}`)}
+          ${row('Job type', params.jobTypeName)}
+          ${row('Quote number', params.quoteNumber)}
+        </table>
+      `)}
+      ${params.calendarLinks ? calendarLinksHtml(params.calendarLinks) : ''}
+      <p style="margin:0 0 8px;font-size:13px;color:#a1a1aa;">If you need to make any further changes, use the link below.</p>
+      <p style="margin:0;font-size:13px;color:#a1a1aa;"><a href="${rescheduleUrl}" style="color:#2563eb;">Reschedule again</a></p>
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: getCustomerFromAddress(params.campaign),
+    to: params.to,
+    subject: `Your booking has been rescheduled — ${params.propertyAddress}`,
+    html,
+  })
+}
+
 export async function sendBookingRescheduleEmail(params: BookingRescheduleParams) {
   const appUrl = APP_URL()
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendBookingConfirmationCustomer, sendBookingNotificationPWB, sendBookingRescheduleEmail } from '@/lib/notifications'
+import { sendBookingConfirmationCustomer, sendBookingNotificationPWB, sendBookingRescheduleEmail, sendBookingRescheduleConfirmationCustomer } from '@/lib/notifications'
 import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
 
 function formatBookingDate(date: Date): string {
@@ -125,6 +125,22 @@ export async function POST(
   ;(async () => {
     try {
       if (is_reschedule) {
+        // Customer reschedule confirmation
+        if (lead.customerEmail) {
+          await sendBookingRescheduleConfirmationCustomer({
+            to: lead.customerEmail,
+            customerName: lead.customerName,
+            propertyAddress: lead.propertyAddress,
+            quoteNumber: lead.quoteNumber,
+            jobTypeName,
+            newDate: bookingDate,
+            newWindowStart: windowStartFmt,
+            newWindowEnd: windowEndFmt,
+            campaign: lead.campaign,
+            bookingToken: token,
+            calendarLinks,
+          })
+        }
         // PWB reschedule notification
         const subcontractors = await prisma.user.findMany({
           where: { campaignId: lead.campaignId, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },

@@ -32,8 +32,14 @@ export async function POST(
     slot_date_nz: booking.slot.date.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' }),
   }
 
-  // Release the confirmed booking — delete it to free the slot
-  await prisma.booking.delete({ where: { id: booking.id } })
+  // Release the confirmed booking and reset lead to QUOTE_SENT so the hold endpoint allows a new hold
+  await prisma.$transaction([
+    prisma.booking.delete({ where: { id: booking.id } }),
+    prisma.lead.update({
+      where: { id: lead.id },
+      data: { status: 'QUOTE_SENT' },
+    }),
+  ])
 
   return NextResponse.json({ success: true, old_booking: oldBooking })
 }

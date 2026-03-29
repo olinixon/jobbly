@@ -207,6 +207,13 @@ export default function BookingSlotPicker({ token, jobTypeName, durationMinutes,
 
   return (
     <div>
+      {isReschedule && oldBooking && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm">
+          <p className="font-medium text-blue-800">You are rescheduling your booking.</p>
+          <p className="text-blue-700 mt-0.5">Your previous time was {oldBooking.date} at {fmt12h(oldBooking.window_start)} – {fmt12h(oldBooking.window_end)}.</p>
+          <p className="text-blue-600 mt-0.5">Pick a new time below.</p>
+        </div>
+      )}
       <h2 className="text-lg font-semibold text-[#111827] mb-1">Choose a time that works for you</h2>
       <p className="text-sm text-[#6B7280] mb-4">{jobTypeName} — {formatDuration(durationMinutes)} slot</p>
 
