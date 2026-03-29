@@ -98,6 +98,13 @@ export async function PATCH(
 
   // Handle status update (forward only)
   if (body.status) {
+    if (body.status === 'JOB_BOOKED') {
+      return NextResponse.json(
+        { error: 'Job Booked status can only be set by the customer booking flow.' },
+        { status: 400 }
+      )
+    }
+
     const currentIdx = STATUS_ORDER.indexOf(lead.status)
     const newIdx = STATUS_ORDER.indexOf(body.status)
 

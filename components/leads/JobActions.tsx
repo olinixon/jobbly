@@ -331,7 +331,7 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
             <Button onClick={() => { setQuoteFileError(''); setIsReplaceMode(false); setShowQuoteModal(true) }}>
               Upload Quote
             </Button>
-          ) : nextStatus && (
+          ) : nextStatus && nextStatus !== 'JOB_BOOKED' && (
             <Button onClick={() => { setError(''); setDateError(''); setShowStatusModal(true) }}>
               Move to {STATUS_LABELS[nextStatus]}
             </Button>
