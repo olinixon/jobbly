@@ -154,6 +154,29 @@ export default async function LeadDetailPage({
           {lead.quoteUrl && (
             <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
               <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Quote Options</h2>
+              {/* Parsing status badge */}
+              {(() => {
+                const opts = Array.isArray(lead.quoteOptions) ? (lead.quoteOptions as unknown as QuoteOptionRow[]) : []
+                const count = opts.length
+                return (
+                  <div className="mb-3 space-y-2">
+                    {count > 0 ? (
+                      <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
+                        ✅ {count} {count === 1 ? 'option' : 'options'} parsed from quote
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium">
+                        ⚠️ Quote could not be parsed — customer will see all service options
+                      </div>
+                    )}
+                    {(isAdmin || isClient) && lead.quoteValidationOverridden && (
+                      <div className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium ml-2">
+                        ⚠ Quote validation was overridden
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
               {Array.isArray(lead.quoteOptions) && (lead.quoteOptions as unknown as QuoteOptionRow[]).length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -214,22 +237,15 @@ export default async function LeadDetailPage({
         <div className="space-y-6">
           {/* Actions */}
           {isAdmin && (
-            <>
-              {lead.quoteValidationOverridden && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-400">
-                  <span>⚠</span> Quote validation was overridden
-                </div>
-              )}
-              <LeadActions
-                quoteNumber={lead.quoteNumber}
-                currentStatus={lead.status}
-                hasInvoice={!!lead.invoiceUrl}
-                notes={lead.notes ?? ''}
-                markupPercentage={lead.campaign.markupPercentage}
-                customerName={lead.customerName}
-                propertyAddress={lead.propertyAddress}
-              />
-            </>
+            <LeadActions
+              quoteNumber={lead.quoteNumber}
+              currentStatus={lead.status}
+              hasInvoice={!!lead.invoiceUrl}
+              notes={lead.notes ?? ''}
+              markupPercentage={lead.campaign.markupPercentage}
+              customerName={lead.customerName}
+              propertyAddress={lead.propertyAddress}
+            />
           )}
 
           {/* Financials (admin only) */}

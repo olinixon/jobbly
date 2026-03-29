@@ -69,12 +69,25 @@ function shortDate(d: Date): string {
 
 // ─── CalendarClient ───────────────────────────────────────────────────────────
 
+interface UpcomingBooking {
+  slotDate: string
+  windowStart: string
+  windowEnd: string
+  quoteNumber: string
+  customerName: string
+  propertyAddress: string
+  jobTypeName: string | null
+}
+
 export default function CalendarClient() {
   const [view, setView] = useState<ViewMode>('month')
   const [anchor, setAnchor] = useState(new Date())
   const [slots, setSlots] = useState<CalendarSlot[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [upcomingBookings, setUpcomingBookings] = useState<UpcomingBooking[]>([])
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [showMobilePanel, setShowMobilePanel] = useState(false)
 
   // Build from/to based on current view
   function getRange(): { from: Date; to: Date } {
@@ -104,7 +117,44 @@ export default function CalendarClient() {
     }
   }, [anchor, view]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch upcoming bookings (today to today+90 days)
+  const fetchUpcoming = useCallback(async () => {
+    const todayDate = new Date()
+    const futureDate = addDays(todayDate, 90)
+    try {
+      const res = await fetch(`/api/calendar?from=${isoDate(todayDate)}&to=${isoDate(futureDate)}`)
+      if (!res.ok) return
+      const data = await res.json()
+      const allSlots: CalendarSlot[] = data.slots ?? []
+      const todayStr = isoDate(todayDate)
+      const bookings: UpcomingBooking[] = []
+      for (const slot of allSlots) {
+        const slotDate = slot.date.split('T')[0]
+        if (slotDate < todayStr) continue
+        for (const b of slot.bookings) {
+          bookings.push({
+            slotDate,
+            windowStart: b.windowStart,
+            windowEnd: b.windowEnd,
+            quoteNumber: b.lead.quoteNumber,
+            customerName: b.lead.customerName,
+            propertyAddress: b.lead.propertyAddress,
+            jobTypeName: b.lead.jobType?.name ?? null,
+          })
+        }
+      }
+      bookings.sort((a, b) => {
+        if (a.slotDate !== b.slotDate) return a.slotDate < b.slotDate ? -1 : 1
+        return toMinutes(a.windowStart) - toMinutes(b.windowStart)
+      })
+      setUpcomingBookings(bookings)
+    } catch {
+      // silently ignore
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => { fetchSlots() }, [fetchSlots])
+  useEffect(() => { fetchUpcoming() }, [fetchUpcoming])
 
   function navigate(delta: number) {
     setAnchor(prev => {
@@ -151,18 +201,34 @@ export default function CalendarClient() {
             <button onClick={() => navigate(1)} className="px-3 py-1.5 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] hover:bg-[#F3F4F6] dark:hover:bg-[#334155]">→</button>
             <span className="text-sm font-semibold text-[#111827] dark:text-[#F1F5F9] ml-2">{periodLabel()}</span>
           </div>
-          <div className="flex border border-[#E5E7EB] dark:border-[#334155] rounded-lg overflow-hidden">
-            {(['month', 'week', 'day'] as ViewMode[]).map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-4 py-1.5 text-sm font-medium capitalize ${view === v ? 'bg-[#2563EB] text-white' : 'bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155]'}`}
-              >
-                {v}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            {/* Mobile upcoming toggle */}
+            <button
+              onClick={() => setShowMobilePanel(!showMobilePanel)}
+              className="md:hidden px-3 py-1.5 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] hover:bg-[#F3F4F6] dark:hover:bg-[#334155]"
+            >
+              Upcoming
+            </button>
+            <div className="flex border border-[#E5E7EB] dark:border-[#334155] rounded-lg overflow-hidden">
+              {(['month', 'week', 'day'] as ViewMode[]).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-4 py-1.5 text-sm font-medium capitalize ${view === v ? 'bg-[#2563EB] text-white' : 'bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155]'}`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* Mobile upcoming panel */}
+        {showMobilePanel && (
+          <div className="md:hidden mb-4">
+            <UpcomingPanel bookings={upcomingBookings} />
+          </div>
+        )}
 
         {loading && <div className="text-sm text-[#6B7280] mb-2">Loading…</div>}
 
@@ -191,6 +257,30 @@ export default function CalendarClient() {
           onClose={() => setSelectedDay(null)}
         />
       )}
+
+      {/* Upcoming bookings panel — desktop */}
+      <div className="hidden md:block shrink-0">
+        {panelOpen ? (
+          <div className="w-64">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-[#111827] dark:text-[#F1F5F9]">Upcoming Bookings</span>
+              <button onClick={() => setPanelOpen(false)} className="text-xs text-[#6B7280] dark:text-[#94A3B8] hover:text-[#374151] dark:hover:text-[#CBD5E1] transition-colors">
+                → Hide
+              </button>
+            </div>
+            <UpcomingPanel bookings={upcomingBookings} />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center pt-8">
+            <button
+              onClick={() => setPanelOpen(true)}
+              className="text-xs text-[#6B7280] dark:text-[#94A3B8] hover:text-[#374151] dark:hover:text-[#CBD5E1] transition-colors rotate-90 whitespace-nowrap"
+            >
+              ← Show
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -498,6 +588,57 @@ function DayDetailPanel({
           <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">No availability or bookings.</p>
         )}
       </div>
+    </div>
+  )
+}
+
+// ─── Upcoming Bookings Panel ───────────────────────────────────────────────────
+
+function UpcomingPanel({ bookings }: { bookings: UpcomingBooking[] }) {
+  const MAX = 20
+  const shown = bookings.slice(0, MAX)
+
+  return (
+    <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-4 shadow-sm">
+      {shown.length === 0 ? (
+        <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">No upcoming bookings.</p>
+      ) : (
+        <div className="space-y-2">
+          {shown.map((b, i) => {
+            const date = new Date(b.slotDate + 'T12:00:00')
+            const dateLabel = date.toLocaleDateString('en-NZ', {
+              timeZone: 'Pacific/Auckland',
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+            })
+            return (
+              <Link
+                key={i}
+                href={`/leads/${b.quoteNumber}`}
+                className="block p-2 rounded-lg hover:bg-[#EFF6FF] dark:hover:bg-[#1e3a5f] transition-colors"
+              >
+                <div className="text-xs font-medium text-[#374151] dark:text-[#CBD5E1]">
+                  {dateLabel} — {fmt12h(b.windowStart)}–{fmt12h(b.windowEnd)}
+                </div>
+                <div className="text-xs font-semibold text-[#111827] dark:text-[#F1F5F9] truncate mt-0.5">{b.customerName}</div>
+                {b.jobTypeName && (
+                  <div className="text-xs text-[#6B7280] dark:text-[#94A3B8] truncate">{b.jobTypeName}</div>
+                )}
+                <div className="text-xs text-[#9CA3AF] dark:text-[#475569] truncate">{b.propertyAddress}</div>
+              </Link>
+            )
+          })}
+          {bookings.length > MAX && (
+            <Link
+              href="/dashboard"
+              className="block text-xs text-[#2563EB] dark:text-[#3B82F6] hover:underline pt-1"
+            >
+              View all in leads table →
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   )
 }
