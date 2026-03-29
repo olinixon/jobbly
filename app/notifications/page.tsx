@@ -9,7 +9,8 @@ import { formatDateTime } from '@/lib/formatDate'
 
 export default async function NotificationsPage() {
   const session = await auth()
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUBCONTRACTOR')) redirect('/login')
+  if (!session) redirect('/login')
+  redirect('/dashboard')
 
   const isAdmin = session.user.role === 'ADMIN'
   const campaignId = session.user.campaignId
