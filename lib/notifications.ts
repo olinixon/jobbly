@@ -364,6 +364,7 @@ interface BookingNotificationParams {
   bookingDate: string
   windowStart: string
   windowEnd: string
+  calendarLinks?: CalendarLinks
 }
 
 export async function sendBookingNotificationPWB(params: BookingNotificationParams) {
@@ -384,6 +385,7 @@ export async function sendBookingNotificationPWB(params: BookingNotificationPara
           ${row('Time', `${params.windowStart} – ${params.windowEnd}`)}
         </table>
       `)}
+      ${params.calendarLinks ? calendarLinksHtml(params.calendarLinks) : ''}
       <div style="margin-bottom:12px;">${primaryButton(jobUrl, 'View Job in Jobbly')}</div>
       <div>${secondaryButton(params.googleMapsUrl, 'Open in Google Maps')}</div>
     </td></tr>

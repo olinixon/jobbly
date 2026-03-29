@@ -213,6 +213,7 @@ export async function POST(
             bookingDate,
             windowStart: windowStartFmt,
             windowEnd: windowEndFmt,
+            calendarLinks,
           })
         }
       }

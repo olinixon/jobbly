@@ -8,6 +8,8 @@ import JobActions from '@/components/leads/JobActions'
 import ManualQuoteOptions from '@/components/leads/ManualQuoteOptions'
 import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
+import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
+import AddToCalendarDropdown from '@/components/leads/AddToCalendarDropdown'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -32,6 +34,8 @@ export default async function JobDetailPage({
     include: {
       campaign: { select: { markupPercentage: true } },
       auditLogs: { orderBy: { createdAt: 'desc' } },
+      booking: { include: { slot: true } },
+      jobType: { select: { name: true } },
     },
   })
 
@@ -42,6 +46,40 @@ export default async function JobDetailPage({
     where: { campaignId: job.campaignId },
     orderBy: { sortOrder: 'asc' },
   })
+
+  function fmt12h(t: string): string {
+    const [h, m] = t.split(':').map(Number)
+    const suffix = h >= 12 ? 'pm' : 'am'
+    const h12 = h % 12 === 0 ? 12 : h % 12
+    return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, '0')}${suffix}`
+  }
+
+  const booking = job.booking
+  const slot = booking?.slot
+  const slotDateNZ = slot
+    ? slot.date.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+    : null
+  const slotDateFormatted = slot
+    ? slot.date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+  const bookedDisplay = slotDateFormatted && booking
+    ? `${slotDateFormatted} — ${fmt12h(booking.windowStart)} – ${fmt12h(booking.windowEnd)}`
+    : job.jobBookedDate ? `${formatDate(job.jobBookedDate)} — —` : null
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const calendarLinks = (booking && slot && job.bookingToken && slotDateNZ)
+    ? generateCalendarLinks({
+        bookingToken: job.bookingToken,
+        bookingId: booking.id,
+        windowStartNZ: booking.windowStart,
+        windowEndNZ: booking.windowEnd,
+        slotDateNZ,
+        propertyAddress: job.propertyAddress,
+        quoteNumber: job.quoteNumber,
+        jobTypeName: job.jobType?.name ?? 'Gutter Clean',
+        appUrl,
+      })
+    : null
 
   return (
     <AppShell>
@@ -116,11 +154,18 @@ export default async function JobDetailPage({
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Received</dt>
                 <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{formatDateTime(job.createdAt)}</dd>
               </div>
-              {job.jobBookedDate && (
-                <div className="flex justify-between">
-                  <dt className="text-[#6B7280] dark:text-[#94A3B8]">Booked Date</dt>
-                  <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{formatDate(job.jobBookedDate)}</dd>
-                </div>
+              {(job.status === 'JOB_BOOKED' || job.status === 'JOB_COMPLETED') && bookedDisplay && (
+                <>
+                  <div className="flex justify-between items-start gap-4">
+                    <dt className="text-[#6B7280] dark:text-[#94A3B8] shrink-0">Booked</dt>
+                    <dd className="font-medium text-[#111827] dark:text-[#F1F5F9] text-right">{bookedDisplay}</dd>
+                  </div>
+                  {calendarLinks && (
+                    <div className="flex justify-end">
+                      <AddToCalendarDropdown links={calendarLinks} />
+                    </div>
+                  )}
+                </>
               )}
             </dl>
           </div>
