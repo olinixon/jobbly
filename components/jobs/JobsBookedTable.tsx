@@ -29,6 +29,7 @@ interface JobBooked {
   windowStart: string | null
   windowEnd: string | null
   daysUntil: string | null
+  bookedAgo: string | null
 }
 
 export default function JobsBookedTable({ jobs }: { jobs: JobBooked[] }) {
@@ -56,6 +57,7 @@ export default function JobsBookedTable({ jobs }: { jobs: JobBooked[] }) {
             <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8]">Booked date</th>
             <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8] hidden sm:table-cell">Time</th>
             <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8]">Days until</th>
+            <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8] hidden sm:table-cell">Booked</th>
           </tr>
         </thead>
         <tbody>
@@ -84,6 +86,7 @@ export default function JobsBookedTable({ jobs }: { jobs: JobBooked[] }) {
                   : '—'}
               </td>
               <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8]">{job.daysUntil ?? '—'}</td>
+              <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] hidden sm:table-cell">{job.bookedAgo ?? '—'}</td>
             </tr>
           ))}
         </tbody>

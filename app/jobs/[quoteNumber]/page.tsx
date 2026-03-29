@@ -66,6 +66,18 @@ export default async function JobDetailPage({
     ? `${slotDateFormatted} — ${fmt12h(booking.windowStart)} – ${fmt12h(booking.windowEnd)}`
     : job.jobBookedDate ? `${formatDate(job.jobBookedDate)} — —` : null
 
+  let bookedAgo: string | null = null
+  if (job.jobBookedDate) {
+    const nzTodayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+    const nzToday = new Date(nzTodayStr)
+    const bookedDateNZ = job.jobBookedDate.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+    const bookedDay = new Date(bookedDateNZ)
+    const diff = Math.round((nzToday.getTime() - bookedDay.getTime()) / (1000 * 60 * 60 * 24))
+    if (diff === 0) bookedAgo = 'Today'
+    else if (diff === 1) bookedAgo = 'Yesterday'
+    else bookedAgo = `${diff} days ago`
+  }
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const calendarLinks = (booking && slot && job.bookingToken && slotDateNZ)
     ? generateCalendarLinks({
@@ -160,6 +172,11 @@ export default async function JobDetailPage({
                     <dt className="text-[#6B7280] dark:text-[#94A3B8] shrink-0">Booked</dt>
                     <dd className="font-medium text-[#111827] dark:text-[#F1F5F9] text-right">{bookedDisplay}</dd>
                   </div>
+                  {job.status === 'JOB_BOOKED' && bookedAgo && (
+                    <div className="flex justify-end">
+                      <span className="text-xs text-[#9CA3AF] dark:text-[#475569]">Booked {bookedAgo}</span>
+                    </div>
+                  )}
                   {calendarLinks && (
                     <div className="flex justify-end">
                       <AddToCalendarDropdown links={calendarLinks} />

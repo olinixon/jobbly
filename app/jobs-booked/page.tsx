@@ -42,6 +42,16 @@ export default async function JobsBookedPage() {
         else daysUntil = `${Math.abs(diff)} days ago`
       }
 
+      let bookedAgo: string | null = null
+      if (lead.jobBookedDate) {
+        const bookedDateNZ = lead.jobBookedDate.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+        const bookedDay = new Date(bookedDateNZ)
+        const diff = Math.round((nzToday.getTime() - bookedDay.getTime()) / (1000 * 60 * 60 * 24))
+        if (diff === 0) bookedAgo = 'Today'
+        else if (diff === 1) bookedAgo = 'Yesterday'
+        else bookedAgo = `${diff} days ago`
+      }
+
       return {
         id: lead.id,
         quoteNumber: lead.quoteNumber,
@@ -52,6 +62,7 @@ export default async function JobsBookedPage() {
         windowStart: booking?.windowStart ?? null,
         windowEnd: booking?.windowEnd ?? null,
         daysUntil,
+        bookedAgo,
       }
     })
     .sort((a, b) => {
