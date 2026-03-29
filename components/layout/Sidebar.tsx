@@ -20,6 +20,7 @@ interface NavItem {
 const adminNav: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: '📊' },
   { label: 'Leads', href: '/dashboard', icon: '📋' },
+  { label: 'Calendar', href: '/calendar', icon: '📅' },
   { label: 'Commission', href: '/commission', icon: '💰' },
   { label: 'Notifications', href: '/notifications', icon: '🔔' },
   { label: 'Audit Log', href: '/audit', icon: '📁' },
