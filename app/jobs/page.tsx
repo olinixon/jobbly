@@ -22,24 +22,32 @@ export default async function JobsPage({
 
   const isNeedsActionFilter = statusFilter === 'NEEDS_ACTION'
 
-  const where: Record<string, unknown> = {}
-  if (session.user.campaignId) where.campaignId = session.user.campaignId
-  if (statusFilter && !isNeedsActionFilter) where.status = statusFilter
+  // New Jobs page: restricted to LEAD_RECEIVED and QUOTE_SENT only
+  const NEW_JOB_STATUSES = ['LEAD_RECEIVED', 'QUOTE_SENT'] as const
+  type NewJobStatus = typeof NEW_JOB_STATUSES[number]
+
+  const baseWhere: Record<string, unknown> = {}
+  if (session.user.campaignId) baseWhere.campaignId = session.user.campaignId
   if (search) {
-    where.OR = [
+    baseWhere.OR = [
       { quoteNumber: { contains: search } },
       { customerName: { contains: search } },
     ]
   }
+
+  // If a valid single-status filter is applied, use it; otherwise show both new-job statuses
+  const statusIn: NewJobStatus[] =
+    statusFilter && !isNeedsActionFilter && NEW_JOB_STATUSES.includes(statusFilter as NewJobStatus)
+      ? [statusFilter as NewJobStatus]
+      : [...NEW_JOB_STATUSES]
+
+  const activeWhere = { ...baseWhere, status: { in: statusIn } }
 
   // Needs-action count (unfiltered, matches sidebar badge)
   const needsActionBaseWhere: Record<string, unknown> = { status: { not: 'JOB_COMPLETED' } }
   if (session.user.campaignId) needsActionBaseWhere.campaignId = session.user.campaignId
 
   let jobs: { id: string; quoteNumber: string; customerName: string; propertyAddress: string; status: string; createdAt: Date; jobBookedDate?: Date | null; urgencyLevel?: 'HIGH' | 'MEDIUM' | null }[] = []
-
-  // Jobs page only shows active (non-completed) leads — completed go to /completed-jobs
-  const activeWhere = { ...where, status: { not: 'JOB_COMPLETED' as const } }
 
   if (isNeedsActionFilter) {
     const activeJobs = await prisma.lead.findMany({ where: activeWhere, orderBy: { createdAt: 'asc' } })
@@ -64,7 +72,7 @@ export default async function JobsPage({
 
   return (
     <AppShell>
-      <PageHeader title="My Jobs" />
+      <PageHeader title="New Jobs" />
 
       <JobsFilters search={search} status={statusFilter} needsActionCount={needsActionCount} />
 

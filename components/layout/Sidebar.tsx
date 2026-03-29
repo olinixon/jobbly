@@ -34,7 +34,7 @@ const clientNav: NavItem[] = [
 
 const subcontractorNav: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: '📊' },
-  { label: 'All Jobs', href: '/jobs', icon: '🔧' },
+  { label: 'New Jobs', href: '/jobs', icon: '🔧' },
   { label: 'Jobs Booked', href: '/jobs-booked', icon: '📅' },
   { label: 'Completed Jobs', href: '/completed-jobs', icon: '✅' },
 ]

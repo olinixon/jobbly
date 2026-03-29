@@ -73,7 +73,6 @@ export default function JobsFilters({ search, status, needsActionCount }: JobsFi
         <option value="">All Statuses</option>
         <option value="LEAD_RECEIVED">Lead Received</option>
         <option value="QUOTE_SENT">Quote Sent</option>
-        <option value="JOB_BOOKED">Job Booked</option>
       </select>
     </div>
   )
