@@ -214,13 +214,22 @@ export default async function LeadDetailPage({
         <div className="space-y-6">
           {/* Actions */}
           {isAdmin && (
-            <LeadActions
-              quoteNumber={lead.quoteNumber}
-              currentStatus={lead.status}
-              hasInvoice={!!lead.invoiceUrl}
-              notes={lead.notes ?? ''}
-              markupPercentage={lead.campaign.markupPercentage}
-            />
+            <>
+              {lead.quoteValidationOverridden && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-400">
+                  <span>⚠</span> Quote validation was overridden
+                </div>
+              )}
+              <LeadActions
+                quoteNumber={lead.quoteNumber}
+                currentStatus={lead.status}
+                hasInvoice={!!lead.invoiceUrl}
+                notes={lead.notes ?? ''}
+                markupPercentage={lead.campaign.markupPercentage}
+                customerName={lead.customerName}
+                propertyAddress={lead.propertyAddress}
+              />
+            </>
           )}
 
           {/* Financials (admin only) */}

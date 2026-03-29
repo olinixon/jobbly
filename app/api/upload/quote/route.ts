@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { saveFile } from '@/lib/fileStorage'
 import { sendQuoteEmail, sendMissingEmailAlert } from '@/lib/notifications'
 import { parseQuotePdf } from '@/lib/parseQuotePdf'
+import { validateQuotePdf } from '@/lib/validateQuotePdf'
 import { randomUUID } from 'crypto'
 
 const MAX_SIZE = 10 * 1024 * 1024
@@ -16,6 +17,8 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   const quoteNumber = formData.get('quoteNumber') as string | null
+  const isReplace = formData.get('replace') === 'true'
+  const skipValidation = formData.get('skip_validation') === 'true'
 
   if (!file || !quoteNumber) {
     return NextResponse.json({ error: 'Missing file or quoteNumber' }, { status: 400 })
@@ -35,8 +38,12 @@ export async function POST(request: NextRequest) {
   if (session.user.role !== 'ADMIN' && lead.campaignId !== session.user.campaignId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
-  if (lead.status !== 'LEAD_RECEIVED') {
+
+  if (!isReplace && lead.status !== 'LEAD_RECEIVED') {
     return NextResponse.json({ error: 'Quote can only be uploaded for a lead in Lead Received status.' }, { status: 400 })
+  }
+  if (isReplace && (lead.status === 'LEAD_RECEIVED' || lead.status === 'JOB_COMPLETED')) {
+    return NextResponse.json({ error: 'Replace quote is only available for Quote Sent or Job Booked status.' }, { status: 400 })
   }
 
   const buffer = Buffer.from(await file.arrayBuffer())
@@ -49,19 +56,52 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
   }
 
-  // Fetch campaign job types for matching
+  const pdfBase64 = buffer.toString('base64')
+
+  // AI customer validation — runs unless skip_validation is set
+  if (!skipValidation) {
+    const validation = await validateQuotePdf(pdfBase64, {
+      customer_name: lead.customerName,
+      property_address: lead.propertyAddress,
+    })
+    if (!validation.valid && validation.confidence === 'high') {
+      return NextResponse.json({
+        success: false,
+        error: 'quote_mismatch',
+        message: `Quote details don't match this customer. The quote appears to be for "${validation.extracted_name}" at "${validation.extracted_address}". Please check you've uploaded the correct file.`,
+        extracted_name: validation.extracted_name,
+        extracted_address: validation.extracted_address,
+      }, { status: 422 })
+    }
+  }
+
+  // Fetch campaign job types for AI parsing
   const campaignJobTypes = await prisma.jobType.findMany({
     where: { campaignId: lead.campaignId },
     orderBy: { sortOrder: 'asc' },
     select: { id: true, name: true, durationMinutes: true, sortOrder: true },
   })
 
-  // Run AI parsing — best effort, never blocks upload
-  const pdfBase64 = buffer.toString('base64')
   const parsedOptions = await parseQuotePdf(pdfBase64, campaignJobTypes)
-
-  const bookingToken = randomUUID()
   const now = new Date()
+
+  if (isReplace) {
+    // Re-upload: update quote fields only, no status change, no email
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        quoteUrl,
+        quoteUploadedAt: now,
+        quoteUploadedBy: session.user.name ?? session.user.id,
+        quoteOptions: parsedOptions.length > 0 ? (parsedOptions as object[]) : undefined,
+        ...(skipValidation ? { quoteValidationOverridden: true } : {}),
+      },
+    })
+    return NextResponse.json({ ok: true, quoteUrl, replaced: true })
+  }
+
+  // Initial upload: change status, create audit log, send email
+  const bookingToken = randomUUID()
 
   await prisma.$transaction([
     prisma.lead.update({
@@ -71,7 +111,7 @@ export async function POST(request: NextRequest) {
         quoteUploadedAt: now,
         quoteUploadedBy: session.user.name ?? session.user.id,
         quoteOptions: parsedOptions.length > 0 ? (parsedOptions as object[]) : undefined,
-        // jobTypeId intentionally NOT set here — set at booking confirmation
+        ...(skipValidation ? { quoteValidationOverridden: true } : {}),
         status: 'QUOTE_SENT',
         bookingToken,
       },

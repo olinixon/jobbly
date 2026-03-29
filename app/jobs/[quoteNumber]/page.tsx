@@ -170,6 +170,8 @@ export default async function JobDetailPage({
             invoiceUrl={job.invoiceUrl}
             markupPercentage={job.campaign.markupPercentage}
             jobTypes={jobTypes}
+            customerName={job.customerName}
+            propertyAddress={job.propertyAddress}
           />
         </div>
       </div>

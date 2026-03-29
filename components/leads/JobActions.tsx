@@ -35,9 +35,12 @@ interface JobActionsProps {
   invoiceUrl: string | null
   markupPercentage: number
   jobTypes: JobType[]
+  customerName?: string
+  propertyAddress?: string
 }
 
 type UploadStep = 'drop' | 'uploading' | 'confirm' | 'fallback'
+type QuoteUploadStep = 'drop' | 'uploading' | 'mismatch'
 
 interface ParsedResult {
   fileUrl: string
@@ -60,7 +63,7 @@ function fmtBytes(b: number) {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export default function JobActions({ quoteNumber, currentStatus, hasInvoice, invoiceUrl, markupPercentage, jobTypes }: JobActionsProps) {
+export default function JobActions({ quoteNumber, currentStatus, hasInvoice, invoiceUrl, markupPercentage, jobTypes, customerName, propertyAddress }: JobActionsProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -80,6 +83,9 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
   const [selectedJobTypeId, setSelectedJobTypeId] = useState('')
   const [quoteUploading, setQuoteUploading] = useState(false)
   const [quoteSuccess, setQuoteSuccess] = useState('')
+  const [quoteUploadStep, setQuoteUploadStep] = useState<QuoteUploadStep>('drop')
+  const [quoteMismatch, setQuoteMismatch] = useState<{ extracted_name: string | null; extracted_address: string | null } | null>(null)
+  const [isReplaceMode, setIsReplaceMode] = useState(false)
   const quoteFileInputRef = useRef<HTMLInputElement>(null)
 
   const [bookedDay, setBookedDay] = useState('')
@@ -273,22 +279,35 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
     setQuoteFile(f)
   }
 
-  async function uploadQuote() {
+  async function uploadQuote(skipValidation = false) {
     if (!quoteFile) return
     setQuoteUploading(true)
+    setQuoteUploadStep('uploading')
     setQuoteFileError('')
+    setQuoteMismatch(null)
     const fd = new FormData()
     fd.append('file', quoteFile)
     fd.append('quoteNumber', quoteNumber)
+    if (isReplaceMode) fd.append('replace', 'true')
+    if (skipValidation) fd.append('skip_validation', 'true')
     const res = await fetch('/api/upload/quote', { method: 'POST', body: fd })
     setQuoteUploading(false)
+    if (res.status === 422) {
+      const d = await res.json()
+      if (d.error === 'quote_mismatch') {
+        setQuoteMismatch({ extracted_name: d.extracted_name ?? null, extracted_address: d.extracted_address ?? null })
+        setQuoteUploadStep('mismatch')
+        return
+      }
+    }
     if (!res.ok) {
       const d = await res.json()
       setQuoteFileError(d.error ?? 'Upload failed.')
+      setQuoteUploadStep('drop')
       return
     }
-    setQuoteSuccess('Quote uploaded and sent to the customer.')
-    setTimeout(() => { closeQuoteModal(); router.refresh() }, 1500)
+    setQuoteSuccess(isReplaceMode ? 'Quote replaced successfully. The customer\'s booking link now points to the updated quote.' : 'Quote uploaded and sent to the customer.')
+    setTimeout(() => { closeQuoteModal(); router.refresh() }, 2000)
   }
 
   function closeQuoteModal() {
@@ -297,6 +316,9 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
     setQuoteFileError('')
     setQuoteUploading(false)
     setQuoteSuccess('')
+    setQuoteUploadStep('drop')
+    setQuoteMismatch(null)
+    setIsReplaceMode(false)
   }
 
   return (
@@ -306,12 +328,17 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
         <div className="text-2xl font-bold text-[#111827] dark:text-[#F1F5F9] mb-4">{currentStatus.replace(/_/g, ' ')}</div>
         <div className="flex flex-wrap gap-3">
           {currentStatus === 'LEAD_RECEIVED' ? (
-            <Button onClick={() => { setQuoteFileError(''); setShowQuoteModal(true) }}>
+            <Button onClick={() => { setQuoteFileError(''); setIsReplaceMode(false); setShowQuoteModal(true) }}>
               Upload Quote
             </Button>
           ) : nextStatus && (
             <Button onClick={() => { setError(''); setDateError(''); setShowStatusModal(true) }}>
               Move to {STATUS_LABELS[nextStatus]}
+            </Button>
+          )}
+          {(currentStatus === 'QUOTE_SENT' || currentStatus === 'JOB_BOOKED') && (
+            <Button variant="secondary" onClick={() => { setQuoteFileError(''); setIsReplaceMode(true); setQuoteUploadStep('drop'); setQuoteFile(null); setShowQuoteModal(true) }}>
+              Replace Quote
             </Button>
           )}
           {(currentStatus === 'JOB_BOOKED' || currentStatus === 'JOB_COMPLETED') && (
@@ -406,58 +433,93 @@ export default function JobActions({ quoteNumber, currentStatus, hasInvoice, inv
         </Modal>
       )}
 
-      {/* Upload Quote modal */}
+      {/* Upload / Replace Quote modal */}
       {showQuoteModal && (
-        <Modal title="Upload Quote" onClose={closeQuoteModal}>
-          <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-4">
-            Upload the quote PDF to send to the customer. PDF only — max 10MB.
-          </p>
-          <div className="space-y-4">
-            {/* File drop zone */}
-            <div
-              onDragOver={(e) => { e.preventDefault(); setQuoteDragOver(true) }}
-              onDragLeave={() => setQuoteDragOver(false)}
-              onDrop={handleQuoteFileDrop}
-              onClick={() => quoteFileInputRef.current?.click()}
-              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${quoteDragOver ? 'border-[#2563EB] bg-blue-50 dark:bg-blue-950/30' : 'border-[#D1D5DB] dark:border-[#334155] bg-[#F9FAFB] dark:bg-[#0F172A]'}`}
-            >
-              <input ref={quoteFileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleQuoteFileChange} />
-              {quoteFile ? (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  </div>
-                  <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">{quoteFile.name}</p>
-                  <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{fmtBytes(quoteFile.size)}</p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-3">
-                  <svg className="w-8 h-8 text-[#9CA3AF] dark:text-[#475569]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                  <div>
-                    <p className="text-sm font-medium text-[#374151] dark:text-[#CBD5E1]">Drag and drop your quote PDF here</p>
-                    <p className="text-xs text-[#9CA3AF] dark:text-[#475569] mt-1">PDF only — max 10MB</p>
-                  </div>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); quoteFileInputRef.current?.click() }} className="px-4 py-2 text-sm font-medium rounded-lg border border-[#D1D5DB] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors">
-                    Choose File
-                  </button>
-                </div>
-              )}
+        <Modal title={isReplaceMode ? 'Replace Quote' : 'Upload Quote'} onClose={closeQuoteModal}>
+          {quoteUploadStep === 'uploading' && (
+            <div className="py-12 flex flex-col items-center gap-4">
+              <div className="w-10 h-10 border-4 border-[#E5E7EB] dark:border-[#334155] border-t-[#2563EB] rounded-full animate-spin" />
+              <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">Uploading and validating quote…</p>
             </div>
+          )}
 
+          {quoteUploadStep === 'mismatch' && quoteMismatch && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl">
+                <span className="text-lg leading-none mt-0.5">❌</span>
+                <div>
+                  <p className="text-sm font-semibold text-[#111827] dark:text-[#F1F5F9] mb-1">Quote details don&apos;t match</p>
+                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">
+                    The quote appears to be for <strong>&quot;{quoteMismatch.extracted_name ?? 'unknown'}&quot;</strong> at <strong>&quot;{quoteMismatch.extracted_address ?? 'unknown'}&quot;</strong>.
+                  </p>
+                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1] mt-1">
+                    Please check you have uploaded the correct quote for <strong>{customerName}</strong> at <strong>{propertyAddress}</strong>.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="secondary" onClick={() => { setQuoteUploadStep('drop'); setQuoteFile(null); setQuoteMismatch(null) }}>
+                  Try again
+                </Button>
+                <button
+                  onClick={() => uploadQuote(true)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+                >
+                  Upload anyway
+                </button>
+              </div>
+            </div>
+          )}
 
-            {quoteFileError && <p className="text-sm text-[#DC2626]">{quoteFileError}</p>}
-            {quoteSuccess && <p className="text-sm text-[#16A34A]">{quoteSuccess}</p>}
-
-            <div className="flex gap-3 justify-end">
-              <Button variant="secondary" onClick={closeQuoteModal}>Cancel</Button>
-              <Button
-                onClick={uploadQuote}
-                disabled={!quoteFile || quoteUploading || !!quoteSuccess}
+          {quoteUploadStep === 'drop' && (
+            <div className="space-y-4">
+              <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">
+                {isReplaceMode
+                  ? 'Upload a replacement quote PDF. The customer\'s booking link will point to the updated quote. No new email will be sent.'
+                  : 'Upload the quote PDF to send to the customer. PDF only — max 10MB.'}
+              </p>
+              {/* File drop zone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setQuoteDragOver(true) }}
+                onDragLeave={() => setQuoteDragOver(false)}
+                onDrop={handleQuoteFileDrop}
+                onClick={() => quoteFileInputRef.current?.click()}
+                className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${quoteDragOver ? 'border-[#2563EB] bg-blue-50 dark:bg-blue-950/30' : 'border-[#D1D5DB] dark:border-[#334155] bg-[#F9FAFB] dark:bg-[#0F172A]'}`}
               >
-                {quoteUploading ? 'Uploading…' : 'Upload & Send Quote'}
-              </Button>
+                <input ref={quoteFileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleQuoteFileChange} />
+                {quoteFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                    <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">{quoteFile.name}</p>
+                    <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{fmtBytes(quoteFile.size)}</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <svg className="w-8 h-8 text-[#9CA3AF] dark:text-[#475569]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    <div>
+                      <p className="text-sm font-medium text-[#374151] dark:text-[#CBD5E1]">Drag and drop your quote PDF here</p>
+                      <p className="text-xs text-[#9CA3AF] dark:text-[#475569] mt-1">PDF only — max 10MB</p>
+                    </div>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); quoteFileInputRef.current?.click() }} className="px-4 py-2 text-sm font-medium rounded-lg border border-[#D1D5DB] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors">
+                      Choose File
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {quoteFileError && <p className="text-sm text-[#DC2626]">{quoteFileError}</p>}
+              {quoteSuccess && <p className="text-sm text-[#16A34A]">{quoteSuccess}</p>}
+
+              <div className="flex gap-3 justify-end">
+                <Button variant="secondary" onClick={closeQuoteModal}>Cancel</Button>
+                <Button onClick={() => uploadQuote()} disabled={!quoteFile || quoteUploading || !!quoteSuccess}>
+                  {quoteUploading ? 'Uploading…' : isReplaceMode ? 'Replace Quote' : 'Upload & Send Quote'}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </Modal>
       )}
 
