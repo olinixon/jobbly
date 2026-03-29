@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Auto-advance to JOB_COMPLETED when a SUBCONTRACTOR uploads an invoice on a JOB_BOOKED lead
-  const shouldAutoComplete = session.user.role === 'SUBCONTRACTOR' && lead.status === 'JOB_BOOKED'
+  // Auto-advance to JOB_COMPLETED when SUBCONTRACTOR or ADMIN uploads an invoice on a JOB_BOOKED lead
+  const shouldAutoComplete = (session.user.role === 'SUBCONTRACTOR' || session.user.role === 'ADMIN') && lead.status === 'JOB_BOOKED'
 
   const invoiceData = {
     invoiceUrl: fileUrl,

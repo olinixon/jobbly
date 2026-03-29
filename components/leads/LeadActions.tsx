@@ -338,7 +338,11 @@ export default function LeadActions({
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
         <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-4">Actions</h2>
         <div className="flex flex-wrap gap-3">
-          {nextStatus && nextStatus !== 'JOB_BOOKED' && (
+          {currentStatus === 'JOB_BOOKED' ? (
+            <Button onClick={() => { closeInvoiceModal(); setShowInvoiceModal(true) }}>
+              {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
+            </Button>
+          ) : nextStatus && nextStatus !== 'JOB_BOOKED' && (
             <Button onClick={() => { setError(''); setDateError(''); setShowStatusModal(true) }}>
               Move to {STATUS_LABELS[nextStatus]}
             </Button>
@@ -348,7 +352,7 @@ export default function LeadActions({
               Replace Quote
             </Button>
           )}
-          {(currentStatus === 'JOB_BOOKED' || currentStatus === 'JOB_COMPLETED') && (
+          {currentStatus === 'JOB_COMPLETED' && (
             <Button variant="secondary" onClick={() => { closeInvoiceModal(); setShowInvoiceModal(true) }}>
               {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
             </Button>
