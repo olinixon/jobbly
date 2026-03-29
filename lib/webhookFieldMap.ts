@@ -1,4 +1,5 @@
 export const webhookFieldMap: Record<string, string> = {
+  quote_number: 'quote_number',   // n8n-generated quote number — use this instead of auto-generating
   customer_name: 'customer_name',
   full_name: 'customer_name',
   name: 'customer_name',

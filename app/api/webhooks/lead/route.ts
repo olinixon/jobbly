@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
   if (!customerPhone) missingFields.push('customer_phone')
   if (!propertyAddress) missingFields.push('property_address')
 
-  const quoteNumber = await generateQuoteNumber(campaign.id)
+  // Use the incoming quote number if provided, otherwise auto-generate
+  const quoteNumber = mapped['quote_number'] && String(mapped['quote_number']).trim()
+    ? String(mapped['quote_number']).trim()
+    : await generateQuoteNumber(campaign.id)
   const googleMapsUrl = propertyAddress ? generateMapsUrl(propertyAddress) : ''
 
   let financials = {}
@@ -151,7 +154,14 @@ export async function POST(request: NextRequest) {
       quote_number: quoteNumber,
       message: 'Lead created successfully',
     })
-  } catch (err) {
+  } catch (err: unknown) {
+    const prismaErr = err as { code?: string; meta?: { target?: string[] } }
+    if (prismaErr?.code === 'P2002' && prismaErr?.meta?.target?.includes('quoteNumber')) {
+      return NextResponse.json(
+        { success: false, message: `Lead with quote number ${quoteNumber} already exists` },
+        { status: 409 }
+      )
+    }
     console.error('Webhook lead creation failed:', err, 'Payload:', JSON.stringify(raw))
     return NextResponse.json(
       { success: false, message: 'Internal server error — lead not created' },
