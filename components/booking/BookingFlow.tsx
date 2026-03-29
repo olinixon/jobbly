@@ -20,6 +20,9 @@ interface BookingFlowProps {
   quoteUrl: string | null
   quoteOptions: QuoteOption[] | null
   fallbackOptions: QuoteOption[]
+  initialSelectedOption?: QuoteOption | null
+  isReschedule?: boolean
+  oldBooking?: { date: string; window_start: string; window_end: string }
 }
 
 export default function BookingFlow({
@@ -30,10 +33,13 @@ export default function BookingFlow({
   quoteUrl,
   quoteOptions,
   fallbackOptions,
+  initialSelectedOption,
+  isReschedule,
+  oldBooking,
 }: BookingFlowProps) {
   const options = quoteOptions ?? fallbackOptions
-  const [selectedOption, setSelectedOption] = useState<QuoteOption | null>(null)
-  const [step, setStep] = useState<'options' | 'slots'>('options')
+  const [selectedOption, setSelectedOption] = useState<QuoteOption | null>(initialSelectedOption ?? null)
+  const [step, setStep] = useState<'options' | 'slots'>(initialSelectedOption ? 'options' : 'options')
 
   function handleContinue() {
     if (selectedOption) setStep('slots')
@@ -73,6 +79,8 @@ export default function BookingFlow({
             durationMinutes={selectedOption.duration_minutes ?? 120}
             initialSlots={[]}
             jobTypeId={selectedOption.job_type_id ?? undefined}
+            isReschedule={isReschedule}
+            oldBooking={oldBooking}
           />
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendBookingConfirmationCustomer, sendBookingNotificationPWB } from '@/lib/notifications'
+import { sendBookingConfirmationCustomer, sendBookingNotificationPWB, sendBookingRescheduleEmail } from '@/lib/notifications'
+import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
 
 function formatBookingDate(date: Date): string {
   return date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -19,7 +20,7 @@ export async function POST(
 ) {
   const { token } = await params
   const body = await request.json()
-  const { slotId, windowStart, windowEnd, job_type_id } = body
+  const { slotId, windowStart, windowEnd, job_type_id, is_reschedule, old_date, old_window_start, old_window_end } = body
 
   if (!slotId || !windowStart || !windowEnd) {
     return NextResponse.json({ error: 'slotId, windowStart, and windowEnd are required' }, { status: 400 })
@@ -34,8 +35,12 @@ export async function POST(
   })
   if (!lead) return NextResponse.json({ error: 'Invalid booking link' }, { status: 404 })
 
-  if (lead.status === 'JOB_BOOKED' || lead.status === 'JOB_COMPLETED') {
+  // For reschedule: allow JOB_BOOKED status; for initial: reject if already booked
+  if (!is_reschedule && (lead.status === 'JOB_BOOKED' || lead.status === 'JOB_COMPLETED')) {
     return NextResponse.json({ error: 'This job is already booked' }, { status: 400 })
+  }
+  if (lead.status === 'JOB_COMPLETED') {
+    return NextResponse.json({ error: 'This job is already completed' }, { status: 400 })
   }
 
   const now = new Date()
@@ -67,71 +72,117 @@ export async function POST(
       data: { status: 'CONFIRMED', heldUntil: null, heldByToken: null },
     })
 
-    // Update lead status
+    // Update lead — status stays JOB_BOOKED for reschedule, or moves to it for initial
     await tx.lead.update({
       where: { id: lead.id },
-      data: { status: 'JOB_BOOKED', jobBookedDate: slotDate, jobTypeId: job_type_id ?? null },
+      data: {
+        status: 'JOB_BOOKED',
+        jobBookedDate: slotDate,
+        jobTypeId: job_type_id ?? null,
+      },
     })
 
-    // Write audit log — find any admin user for the campaign as the actor (booking is a customer action)
-    const adminUser = await tx.user.findFirst({
-      where: { campaignId: lead.campaignId, role: 'ADMIN', isActive: true },
-      select: { id: true },
-    })
-    if (adminUser) {
-      await tx.auditLog.create({
-        data: {
-          leadId: lead.id,
-          campaignId: lead.campaignId,
-          changedByUserId: adminUser.id,
-          changedByName: `${lead.customerName} (customer booking)`,
-          oldStatus: 'QUOTE_SENT',
-          newStatus: 'JOB_BOOKED',
-        },
+    if (!is_reschedule) {
+      const adminUser = await tx.user.findFirst({
+        where: { campaignId: lead.campaignId, role: 'ADMIN', isActive: true },
+        select: { id: true },
       })
+      if (adminUser) {
+        await tx.auditLog.create({
+          data: {
+            leadId: lead.id,
+            campaignId: lead.campaignId,
+            changedByUserId: adminUser.id,
+            changedByName: `${lead.customerName} (customer booking)`,
+            oldStatus: 'QUOTE_SENT',
+            newStatus: 'JOB_BOOKED',
+          },
+        })
+      }
     }
-
   })
 
   const bookingDate = formatBookingDate(slotDate)
   const windowStartFmt = fmt12h(windowStart)
   const windowEndFmt = fmt12h(windowEnd)
   const jobTypeName = lead.jobType?.name ?? 'Gutter Clean'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const slotDateNZ = slotDate.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+
+  const calendarLinks = generateCalendarLinks({
+    bookingToken: token,
+    bookingId: booking.id,
+    windowStartNZ: windowStart,
+    windowEndNZ: windowEnd,
+    slotDateNZ,
+    propertyAddress: lead.propertyAddress,
+    quoteNumber: lead.quoteNumber,
+    jobTypeName,
+    appUrl,
+  })
 
   // Fire-and-forget emails
   ;(async () => {
     try {
-      if (lead.customerEmail) {
-        await sendBookingConfirmationCustomer({
-          to: lead.customerEmail,
-          customerName: lead.customerName,
-          propertyAddress: lead.propertyAddress,
-          quoteNumber: lead.quoteNumber,
-          jobTypeName,
-          bookingDate,
-          windowStart: windowStartFmt,
-          windowEnd: windowEndFmt,
-          campaign: lead.campaign,
+      if (is_reschedule) {
+        // PWB reschedule notification
+        const subcontractors = await prisma.user.findMany({
+          where: { campaignId: lead.campaignId, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
+          select: { email: true, name: true },
         })
-      }
+        if (subcontractors.length > 0) {
+          await sendBookingRescheduleEmail({
+            to: subcontractors.map(u => u.email),
+            recipients: subcontractors.map(u => ({ email: u.email, name: u.name })),
+            quoteNumber: lead.quoteNumber,
+            customerName: lead.customerName,
+            propertyAddress: lead.propertyAddress,
+            googleMapsUrl: lead.googleMapsUrl,
+            oldDate: old_date ?? '',
+            oldWindowStart: old_window_start ?? '',
+            oldWindowEnd: old_window_end ?? '',
+            newDate: bookingDate,
+            newWindowStart: windowStart,
+            newWindowEnd: windowEnd,
+            calendarLinks,
+          })
+        }
+      } else {
+        // Initial booking: send confirmation to customer + PWB notification
+        if (lead.customerEmail) {
+          await sendBookingConfirmationCustomer({
+            to: lead.customerEmail,
+            customerName: lead.customerName,
+            propertyAddress: lead.propertyAddress,
+            quoteNumber: lead.quoteNumber,
+            jobTypeName,
+            bookingDate,
+            windowStart: windowStartFmt,
+            windowEnd: windowEndFmt,
+            campaign: lead.campaign,
+            bookingToken: token,
+            calendarLinks,
+          })
+        }
 
-      const subcontractors = await prisma.user.findMany({
-        where: { campaignId: lead.campaignId, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
-        select: { email: true },
-      })
-
-      if (subcontractors.length > 0) {
-        await sendBookingNotificationPWB({
-          to: subcontractors.map(u => u.email),
-          quoteNumber: lead.quoteNumber,
-          customerName: lead.customerName,
-          propertyAddress: lead.propertyAddress,
-          googleMapsUrl: lead.googleMapsUrl,
-          jobTypeName,
-          bookingDate,
-          windowStart: windowStartFmt,
-          windowEnd: windowEndFmt,
+        const subcontractors = await prisma.user.findMany({
+          where: { campaignId: lead.campaignId, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
+          select: { email: true },
         })
+
+        if (subcontractors.length > 0) {
+          await sendBookingNotificationPWB({
+            to: subcontractors.map(u => u.email),
+            quoteNumber: lead.quoteNumber,
+            customerName: lead.customerName,
+            propertyAddress: lead.propertyAddress,
+            googleMapsUrl: lead.googleMapsUrl,
+            jobTypeName,
+            bookingDate,
+            windowStart: windowStartFmt,
+            windowEnd: windowEndFmt,
+          })
+        }
       }
     } catch (err) {
       console.error('Booking confirmation emails failed:', err)

@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { getCustomerFromAddress } from '@/lib/getCustomerFromAddress'
+import { type CalendarLinks } from '@/lib/generateCalendarLinks'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const APP_URL = () => process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
@@ -50,6 +51,19 @@ function row(label: string, value: string): string {
 
 function statRow(label: string, value: string): string {
   return `<td style="text-align:center;padding:0 12px;"><div style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">${label}</div><div style="font-size:15px;font-weight:600;color:#18181b;">${value}</div></td>`
+}
+
+function calendarLinksHtml(links: CalendarLinks): string {
+  return `
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+      <tr><td style="padding:0 0 8px;font-size:13px;color:#71717a;">Add to your calendar:</td></tr>
+      <tr>
+        <td style="padding-right:8px;"><a href="${links.google}" target="_blank" style="display:inline-block;padding:6px 12px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#18181b;text-decoration:none;background:#fff;">Google Calendar</a></td>
+        <td style="padding-right:8px;"><a href="${links.apple_ics}" style="display:inline-block;padding:6px 12px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#18181b;text-decoration:none;background:#fff;">Apple Calendar</a></td>
+        <td><a href="${links.outlook}" target="_blank" style="display:inline-block;padding:6px 12px;border:1px solid #e4e4e7;border-radius:6px;font-size:12px;color:#18181b;text-decoration:none;background:#fff;">Outlook</a></td>
+      </tr>
+    </table>
+  `
 }
 
 // ─── New Lead Email ──────────────────────────────────────────────────────────
@@ -303,9 +317,14 @@ interface BookingConfirmationParams {
   windowStart: string    // e.g. "7:00am"
   windowEnd: string      // e.g. "9:00am"
   campaign: { customer_from_email?: string | null; customer_from_name?: string | null }
+  bookingToken: string
+  calendarLinks?: CalendarLinks
 }
 
 export async function sendBookingConfirmationCustomer(params: BookingConfirmationParams) {
+  const appUrl = APP_URL()
+  const rescheduleUrl = `${appUrl}/book/${params.bookingToken}`
+
   const html = emailShell(`
     <tr><td style="padding:40px 40px 24px;">
       <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">Booking confirmed</h1>
@@ -319,7 +338,9 @@ export async function sendBookingConfirmationCustomer(params: BookingConfirmatio
           ${row('Quote number', params.quoteNumber)}
         </table>
       `)}
-      <p style="margin:0;font-size:13px;color:#a1a1aa;">We'll see you then. If you need to make any changes, please contact us.</p>
+      ${params.calendarLinks ? calendarLinksHtml(params.calendarLinks) : ''}
+      <p style="margin:0 0 8px;font-size:13px;color:#a1a1aa;">We'll see you then.</p>
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">Need to change your booking? <a href="${rescheduleUrl}" style="color:#2563eb;">Reschedule here</a></p>
     </td></tr>
   `)
 
@@ -374,4 +395,76 @@ export async function sendBookingNotificationPWB(params: BookingNotificationPara
     subject: `New job booked — ${params.quoteNumber} — ${params.customerName}`,
     html,
   })
+}
+
+// ─── Booking Reschedule Notification (to subcontractors/PWB) ─────────────────
+
+interface BookingRescheduleParams {
+  to: string | string[]
+  recipients: { email: string; name: string | null }[]
+  quoteNumber: string
+  customerName: string
+  propertyAddress: string
+  googleMapsUrl: string
+  oldDate: string         // formatted date string
+  oldWindowStart: string  // "07:00"
+  oldWindowEnd: string    // "09:00"
+  newDate: string
+  newWindowStart: string
+  newWindowEnd: string
+  calendarLinks?: CalendarLinks
+}
+
+function fmt12hEmail(t: string): string {
+  const [h, m] = t.split(':').map(Number)
+  const suffix = h >= 12 ? 'pm' : 'am'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, '0')}${suffix}`
+}
+
+export async function sendBookingRescheduleEmail(params: BookingRescheduleParams) {
+  const appUrl = APP_URL()
+
+  for (const recipient of params.recipients) {
+    const greeting = extractFirstName(recipient.name)
+    const jobUrl = `${appUrl}/jobs/${params.quoteNumber}`
+
+    const html = emailShell(`
+      <tr><td style="padding:40px 40px 24px;">
+        <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#18181b;">Booking rescheduled</h1>
+        <p style="margin:0 0 24px;font-size:15px;color:#71717a;">${greeting} A customer has rescheduled their booking.</p>
+        ${card(`
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${row('Quote number', params.quoteNumber)}
+            ${row('Customer', params.customerName)}
+            ${row('Property', params.propertyAddress)}
+          </table>
+        `)}
+        <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#18181b;">Previous booking</p>
+        ${card(`
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${row('Date', params.oldDate)}
+            ${row('Time', `${fmt12hEmail(params.oldWindowStart)} – ${fmt12hEmail(params.oldWindowEnd)}`)}
+          </table>
+        `)}
+        <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#18181b;">New booking</p>
+        ${card(`
+          <table width="100%" cellpadding="0" cellspacing="0">
+            ${row('Date', params.newDate)}
+            ${row('Time', `${fmt12hEmail(params.newWindowStart)} – ${fmt12hEmail(params.newWindowEnd)}`)}
+          </table>
+        `)}
+        ${params.calendarLinks ? calendarLinksHtml(params.calendarLinks) : ''}
+        <div style="margin-bottom:12px;">${primaryButton(jobUrl, 'View Job in Jobbly')}</div>
+        <div>${secondaryButton(params.googleMapsUrl, 'Open in Google Maps')}</div>
+      </td></tr>
+    `)
+
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM!,
+      to: recipient.email,
+      subject: `Booking rescheduled — ${params.quoteNumber} — ${params.customerName}`,
+      html,
+    })
+  }
 }

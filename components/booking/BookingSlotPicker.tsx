@@ -22,6 +22,8 @@ interface BookingSlotPickerProps {
   jobTypeName: string
   durationMinutes: number
   initialSlots: Slot[]
+  isReschedule?: boolean
+  oldBooking?: { date: string; window_start: string; window_end: string }
 }
 
 function fmt12h(t: string): string {
@@ -49,7 +51,7 @@ function formatCountdown(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-export default function BookingSlotPicker({ token, jobTypeName, durationMinutes, initialSlots, jobTypeId }: BookingSlotPickerProps) {
+export default function BookingSlotPicker({ token, jobTypeName, durationMinutes, initialSlots, jobTypeId, isReschedule, oldBooking }: BookingSlotPickerProps) {
   const [slots, setSlots] = useState<Slot[]>(initialSlots)
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [selectedWindow, setSelectedWindow] = useState<{ windowStart: string; windowEnd: string } | null>(null)
@@ -129,10 +131,23 @@ export default function BookingSlotPicker({ token, jobTypeName, durationMinutes,
     setError('')
 
     try {
+      const confirmBody: Record<string, unknown> = {
+        slotId: selectedSlotId,
+        ...selectedWindow,
+        job_type_id: jobTypeId ?? null,
+      }
+      if (isReschedule) {
+        confirmBody.is_reschedule = true
+        if (oldBooking) {
+          confirmBody.old_date = oldBooking.date
+          confirmBody.old_window_start = oldBooking.window_start
+          confirmBody.old_window_end = oldBooking.window_end
+        }
+      }
       const res = await fetch(`/api/book/${token}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId: selectedSlotId, ...selectedWindow, job_type_id: jobTypeId ?? null }),
+        body: JSON.stringify(confirmBody),
       })
       const data = await res.json()
 
