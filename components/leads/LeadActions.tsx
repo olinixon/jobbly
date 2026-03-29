@@ -66,6 +66,7 @@ export default function LeadActions({
   const [showRevertModal, setShowRevertModal] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [showReplaceQuoteModal, setShowReplaceQuoteModal] = useState(false)
+  const [quoteModalIsReplace, setQuoteModalIsReplace] = useState(true)
   const [quoteFile, setQuoteFile] = useState<File | null>(null)
   const [quoteDragOver, setQuoteDragOver] = useState(false)
   const [quoteFileError, setQuoteFileError] = useState('')
@@ -287,7 +288,7 @@ export default function LeadActions({
     const fd = new FormData()
     fd.append('file', quoteFile)
     fd.append('quoteNumber', quoteNumber)
-    fd.append('replace', 'true')
+    if (quoteModalIsReplace) fd.append('replace', 'true')
     if (skipValidation) fd.append('skip_validation', 'true')
     const res = await fetch('/api/upload/quote', { method: 'POST', body: fd })
     setQuoteUploading(false)
@@ -305,7 +306,9 @@ export default function LeadActions({
       setQuoteUploadStep('drop')
       return
     }
-    setQuoteSuccess("Quote replaced successfully. The customer's booking link now points to the updated quote.")
+    setQuoteSuccess(quoteModalIsReplace
+      ? "Quote replaced successfully. The customer's booking link now points to the updated quote."
+      : "Quote uploaded successfully. The customer has been emailed with their quote and booking link.")
     setTimeout(() => { closeReplaceQuoteModal(); router.refresh() }, 2000)
   }
 
@@ -338,7 +341,11 @@ export default function LeadActions({
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
         <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-4">Actions</h2>
         <div className="flex flex-wrap gap-3">
-          {currentStatus === 'JOB_BOOKED' ? (
+          {currentStatus === 'LEAD_RECEIVED' ? (
+            <Button onClick={() => { setQuoteModalIsReplace(false); setQuoteFileError(''); setQuoteUploadStep('drop'); setQuoteFile(null); setQuoteSuccess(''); setShowReplaceQuoteModal(true) }}>
+              Upload Quote
+            </Button>
+          ) : currentStatus === 'JOB_BOOKED' ? (
             <Button onClick={() => { closeInvoiceModal(); setShowInvoiceModal(true) }}>
               {hasInvoice ? 'Replace Invoice' : 'Attach Invoice'}
             </Button>
@@ -348,7 +355,7 @@ export default function LeadActions({
             </Button>
           )}
           {(currentStatus === 'QUOTE_SENT' || currentStatus === 'JOB_BOOKED') && (
-            <Button variant="secondary" onClick={() => { setQuoteFileError(''); setQuoteUploadStep('drop'); setQuoteFile(null); setShowReplaceQuoteModal(true) }}>
+            <Button variant="secondary" onClick={() => { setQuoteModalIsReplace(true); setQuoteFileError(''); setQuoteUploadStep('drop'); setQuoteFile(null); setQuoteSuccess(''); setShowReplaceQuoteModal(true) }}>
               Replace Quote
             </Button>
           )}
@@ -568,7 +575,7 @@ export default function LeadActions({
 
       {/* Replace Quote modal */}
       {showReplaceQuoteModal && (
-        <Modal title="Replace Quote" onClose={closeReplaceQuoteModal}>
+        <Modal title={quoteModalIsReplace ? 'Replace Quote' : 'Upload Quote'} onClose={closeReplaceQuoteModal}>
           {quoteUploadStep === 'uploading' && (
             <div className="py-12 flex flex-col items-center gap-4">
               <div className="w-10 h-10 border-4 border-[#E5E7EB] dark:border-[#334155] border-t-[#2563EB] rounded-full animate-spin" />
@@ -607,7 +614,9 @@ export default function LeadActions({
           {quoteUploadStep === 'drop' && (
             <div className="space-y-4">
               <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">
-                Upload a replacement quote PDF. The customer&apos;s booking link will point to the updated quote. No new email will be sent.
+                {quoteModalIsReplace
+                  ? "Upload a replacement quote PDF. The customer's booking link will point to the updated quote. No new email will be sent."
+                  : 'Upload the quote PDF for this lead. The customer will be emailed with their quote and a link to book.'}
               </p>
               <div
                 onDragOver={(e) => { e.preventDefault(); setQuoteDragOver(true) }}
@@ -643,7 +652,7 @@ export default function LeadActions({
               <div className="flex gap-3 justify-end">
                 <Button variant="secondary" onClick={closeReplaceQuoteModal}>Cancel</Button>
                 <Button onClick={() => uploadReplaceQuote()} disabled={!quoteFile || quoteUploading || !!quoteSuccess}>
-                  {quoteUploading ? 'Uploading…' : 'Replace Quote'}
+                  {quoteUploading ? 'Uploading…' : quoteModalIsReplace ? 'Replace Quote' : 'Upload Quote'}
                 </Button>
               </div>
             </div>
