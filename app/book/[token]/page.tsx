@@ -13,7 +13,7 @@ function fmt12h(t: string): string {
 }
 
 function formatBookingDate(date: Date): string {
-  return date.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 function generateWindows(startTime: string, endTime: string, durationMinutes: number) {

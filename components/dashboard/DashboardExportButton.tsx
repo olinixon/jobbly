@@ -18,7 +18,7 @@ export default function DashboardExportButton({ stats, dateLabel }: DashboardExp
         <div style={{ borderBottom: '2px solid #111', paddingBottom: '12px', marginBottom: '16px' }}>
           <div style={{ fontSize: '20px', fontWeight: 700 }}>Jobbly — Dashboard Summary</div>
           <div style={{ fontSize: '13px', color: '#555', marginTop: '4px' }}>
-            Period: {dateLabel} · Generated: {new Date().toLocaleDateString('en-NZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+            Period: {dateLabel} · Generated: {new Date().toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>

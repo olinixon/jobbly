@@ -1,28 +1,42 @@
 /**
- * Format a date as "27 March 2025, 20:40" in the user's local timezone.
- * Used for all date displays throughout Jobbly.
+ * Formats a date/timestamp for display in New Zealand time (Pacific/Auckland).
+ * All timestamps are stored as UTC in the database — this converts them for display only.
  */
-export function formatDateTime(date: Date | string | null | undefined): string {
+export function formatNZDate(
+  date: Date | string | null | undefined,
+  options?: Intl.DateTimeFormatOptions
+): string {
   if (!date) return '—'
+
   const d = typeof date === 'string' ? new Date(date) : date
+
   if (isNaN(d.getTime())) return '—'
-  const day = d.getDate()
-  const month = d.toLocaleString('en-NZ', { month: 'long' })
-  const year = d.getFullYear()
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  return `${day} ${month} ${year}, ${hours}:${minutes}`
+
+  const defaultOptions: Intl.DateTimeFormatOptions = {
+    timeZone: 'Pacific/Auckland',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }
+
+  return d.toLocaleString('en-NZ', options ?? defaultOptions)
 }
 
 /**
- * Format a date as "27 March 2025" (no time).
+ * Date only — no time component. Used for job booked dates, completed dates, etc.
  */
-export function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return '—'
-  const d = typeof date === 'string' ? new Date(date) : date
-  if (isNaN(d.getTime())) return '—'
-  const day = d.getDate()
-  const month = d.toLocaleString('en-NZ', { month: 'long' })
-  const year = d.getFullYear()
-  return `${day} ${month} ${year}`
+export function formatNZDateOnly(date: Date | string | null | undefined): string {
+  return formatNZDate(date, {
+    timeZone: 'Pacific/Auckland',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
+
+// Aliases used by existing imports throughout the codebase
+export const formatDateTime = formatNZDate
+export const formatDate = formatNZDateOnly

@@ -63,7 +63,7 @@ export default function CommissionTable({ leads }: { leads: Lead[] }) {
                 </td>
                 <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.customerName}</td>
                 <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] whitespace-nowrap">
-                  {new Date(lead.updatedAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {new Date(lead.updatedAt).toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', day: 'numeric', month: 'short', year: 'numeric' })}
                 </td>
                 <td className="px-4 py-3 text-right text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.contractorRate)}</td>
                 <td className="px-4 py-3 text-right text-[#111827] dark:text-[#F1F5F9]">{fmt(lead.customerPrice)}</td>

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { sendBookingConfirmationCustomer, sendBookingNotificationPWB } from '@/lib/notifications'
 
 function formatBookingDate(date: Date): string {
-  return date.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 function fmt12h(t: string): string {

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
   for (const lead of leads) {
     const d = new Date(lead.jobCompletedAt!)
     const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const label = d.toLocaleDateString('en-NZ', { month: 'long', year: 'numeric' })
+    const label = d.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', month: 'long', year: 'numeric' })
     if (!monthMap.has(monthKey)) {
       monthMap.set(monthKey, { monthKey, label, leads: [] })
     }

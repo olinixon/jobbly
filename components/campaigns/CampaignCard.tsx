@@ -21,7 +21,7 @@ export default function CampaignCard({ campaign }: { campaign: Campaign }) {
         <Badge status={campaign.status} type="campaign" />
       </div>
       <p className="text-xs text-[#9CA3AF] dark:text-[#475569]">
-        {campaign.industry} &middot; Started {new Date(campaign.startDate).toLocaleDateString('en-NZ', { year: 'numeric', month: 'short', day: 'numeric' })}
+        {campaign.industry} &middot; Started {new Date(campaign.startDate).toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', year: 'numeric', month: 'short', day: 'numeric' })}
       </p>
       <Link
         href={`/dashboard?campaignId=${campaign.id}`}

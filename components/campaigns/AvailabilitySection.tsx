@@ -38,7 +38,7 @@ function totalPossibleWindows(startTime: string, endTime: string, minDuration: n
 
 function formatSlotDate(dateStr: string): string {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('en-NZ', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return d.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 function fmt12h(t: string): string {
