@@ -51,6 +51,12 @@ export default async function JobDetailPage({
         <LeadStatusPipeline status={job.status} jobBookedDate={job.jobBookedDate} />
       </div>
 
+      {job.status === 'LEAD_RECEIVED' && (
+        <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] mb-6">
+          Create a quote for this customer and come back here to upload it.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
           <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
