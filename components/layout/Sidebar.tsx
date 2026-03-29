@@ -34,10 +34,9 @@ const clientNav: NavItem[] = [
 
 const subcontractorNav: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: '📊' },
-  { label: 'Jobs', href: '/jobs', icon: '🔧' },
+  { label: 'All Jobs', href: '/jobs', icon: '🔧' },
   { label: 'Jobs Booked', href: '/jobs-booked', icon: '📅' },
   { label: 'Completed Jobs', href: '/completed-jobs', icon: '✅' },
-  { label: 'Audit Log', href: '/audit', icon: '📁' },
 ]
 
 export default function Sidebar({ role, userName, needsActionCount = 0 }: SidebarProps) {

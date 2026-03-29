@@ -14,7 +14,7 @@ export default async function AuditPage({
   searchParams: Promise<{ search?: string; from?: string; to?: string }>
 }) {
   const session = await auth()
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'SUBCONTRACTOR')) redirect('/login')
+  if (!session || session.user.role !== 'ADMIN') redirect('/login')
 
   const sp = await searchParams
   const search = sp.search ?? ''
