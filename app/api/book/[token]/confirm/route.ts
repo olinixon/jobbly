@@ -137,90 +137,90 @@ export async function POST(
     appUrl,
   })
 
-  // Fire-and-forget emails
-  ;(async () => {
-    try {
-      if (is_reschedule) {
-        // Customer reschedule confirmation
-        if (lead.customerEmail) {
-          await sendBookingRescheduleConfirmationCustomer({
-            to: lead.customerEmail,
-            customerName: lead.customerName,
-            propertyAddress: lead.propertyAddress,
-            quoteNumber: lead.quoteNumber,
-            jobTypeName,
-            newDate: bookingDate,
-            newWindowStart: windowStartFmt,
-            newWindowEnd: windowEndFmt,
-            campaign: lead.campaign,
-            bookingToken: token,
-            calendarLinks,
-          })
-        }
-        // PWB reschedule notification
-        const subcontractors = await prisma.user.findMany({
+  // Send confirmation emails immediately — awaited so they complete before Vercel freezes the function.
+  // Wrapped in try/catch so email failure never blocks the booking success response.
+  try {
+    if (is_reschedule) {
+      // Parallelise: send customer reschedule confirmation while fetching subcontractors
+      const [, subcontractors] = await Promise.all([
+        lead.customerEmail
+          ? sendBookingRescheduleConfirmationCustomer({
+              to: lead.customerEmail,
+              customerName: lead.customerName,
+              propertyAddress: lead.propertyAddress,
+              quoteNumber: lead.quoteNumber,
+              jobTypeName,
+              newDate: bookingDate,
+              newWindowStart: windowStartFmt,
+              newWindowEnd: windowEndFmt,
+              campaign: lead.campaign,
+              bookingToken: token,
+              calendarLinks,
+            })
+          : Promise.resolve(),
+        prisma.user.findMany({
           where: { campaignId: lead.campaignId, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
           select: { email: true, name: true },
+        }),
+      ])
+      if (subcontractors.length > 0) {
+        await sendBookingRescheduleEmail({
+          to: subcontractors.map(u => u.email),
+          recipients: subcontractors.map(u => ({ email: u.email, name: u.name })),
+          quoteNumber: lead.quoteNumber,
+          customerName: lead.customerName,
+          propertyAddress: lead.propertyAddress,
+          googleMapsUrl: lead.googleMapsUrl,
+          oldDate: old_date ?? '',
+          oldWindowStart: old_window_start ?? '',
+          oldWindowEnd: old_window_end ?? '',
+          newDate: bookingDate,
+          newWindowStart: windowStart,
+          newWindowEnd: windowEnd,
+          calendarLinks,
         })
-        if (subcontractors.length > 0) {
-          await sendBookingRescheduleEmail({
-            to: subcontractors.map(u => u.email),
-            recipients: subcontractors.map(u => ({ email: u.email, name: u.name })),
-            quoteNumber: lead.quoteNumber,
-            customerName: lead.customerName,
-            propertyAddress: lead.propertyAddress,
-            googleMapsUrl: lead.googleMapsUrl,
-            oldDate: old_date ?? '',
-            oldWindowStart: old_window_start ?? '',
-            oldWindowEnd: old_window_end ?? '',
-            newDate: bookingDate,
-            newWindowStart: windowStart,
-            newWindowEnd: windowEnd,
-            calendarLinks,
-          })
-        }
-      } else {
-        // Initial booking: send confirmation to customer + PWB notification
-        if (lead.customerEmail) {
-          await sendBookingConfirmationCustomer({
-            to: lead.customerEmail,
-            customerName: lead.customerName,
-            propertyAddress: lead.propertyAddress,
-            quoteNumber: lead.quoteNumber,
-            jobTypeName,
-            bookingDate,
-            windowStart: windowStartFmt,
-            windowEnd: windowEndFmt,
-            campaign: lead.campaign,
-            bookingToken: token,
-            calendarLinks,
-          })
-        }
-
-        const subcontractors = await prisma.user.findMany({
+      }
+    } else {
+      // Parallelise: send customer confirmation while fetching subcontractors
+      const [, subcontractors] = await Promise.all([
+        lead.customerEmail
+          ? sendBookingConfirmationCustomer({
+              to: lead.customerEmail,
+              customerName: lead.customerName,
+              propertyAddress: lead.propertyAddress,
+              quoteNumber: lead.quoteNumber,
+              jobTypeName,
+              bookingDate,
+              windowStart: windowStartFmt,
+              windowEnd: windowEndFmt,
+              campaign: lead.campaign,
+              bookingToken: token,
+              calendarLinks,
+            })
+          : Promise.resolve(),
+        prisma.user.findMany({
           where: { campaignId: lead.campaignId, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
           select: { email: true },
+        }),
+      ])
+      if (subcontractors.length > 0) {
+        await sendBookingNotificationPWB({
+          to: subcontractors.map(u => u.email),
+          quoteNumber: lead.quoteNumber,
+          customerName: lead.customerName,
+          propertyAddress: lead.propertyAddress,
+          googleMapsUrl: lead.googleMapsUrl,
+          jobTypeName,
+          bookingDate,
+          windowStart: windowStartFmt,
+          windowEnd: windowEndFmt,
+          calendarLinks,
         })
-
-        if (subcontractors.length > 0) {
-          await sendBookingNotificationPWB({
-            to: subcontractors.map(u => u.email),
-            quoteNumber: lead.quoteNumber,
-            customerName: lead.customerName,
-            propertyAddress: lead.propertyAddress,
-            googleMapsUrl: lead.googleMapsUrl,
-            jobTypeName,
-            bookingDate,
-            windowStart: windowStartFmt,
-            windowEnd: windowEndFmt,
-            calendarLinks,
-          })
-        }
       }
-    } catch (err) {
-      console.error('Booking confirmation emails failed:', err)
     }
-  })()
+  } catch (err) {
+    console.error('Booking confirmation emails failed:', err)
+  }
 
   return NextResponse.json({
     ok: true,
