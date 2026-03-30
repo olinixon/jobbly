@@ -8,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import LeadsTable from '@/components/leads/LeadsTable'
 import DashboardFilters from '@/components/dashboard/DashboardFilters'
 import DashboardExportButton from '@/components/dashboard/DashboardExportButton'
+import AddLeadModal from '@/components/dashboard/AddLeadModal'
 import Link from 'next/link'
 import { computeUrgency } from '@/lib/urgency'
 
@@ -222,7 +223,12 @@ export default async function DashboardPage({
       <PageHeader
         title="Dashboard"
         subtitle="Campaign overview"
-        action={<DashboardExportButton stats={exportStats} dateLabel={dateLabel} />}
+        action={
+          <div className="flex items-center gap-2">
+            {isAdmin && <AddLeadModal />}
+            <DashboardExportButton stats={exportStats} dateLabel={dateLabel} />
+          </div>
+        }
       />
 
       {/* Stat cards */}
