@@ -11,6 +11,8 @@ import DashboardExportButton from '@/components/dashboard/DashboardExportButton'
 import Link from 'next/link'
 import { computeUrgency } from '@/lib/urgency'
 
+export const revalidate = 30
+
 interface SearchParams {
   campaignId?: string
   search?: string

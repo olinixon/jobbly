@@ -8,6 +8,8 @@ import CommissionPageClient from '@/components/commission/CommissionPageClient'
 import ClientCommissionPage from '@/components/commission/ClientCommissionPage'
 import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 
+export const revalidate = 30
+
 export default async function CommissionPage({
   searchParams,
 }: {

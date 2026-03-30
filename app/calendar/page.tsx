@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import AppShell from '@/components/layout/AppShell'
 import CalendarClient from '@/components/calendar/CalendarClient'
 
+export const revalidate = 30
+
 export default async function CalendarPage() {
   const session = await auth()
   if (!session) redirect('/login')
