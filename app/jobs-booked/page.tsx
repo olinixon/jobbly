@@ -47,7 +47,7 @@ export default async function JobsBookedPage() {
         const bookedDateNZ = lead.jobBookedDate.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
         const bookedDay = new Date(bookedDateNZ)
         const diff = Math.round((nzToday.getTime() - bookedDay.getTime()) / (1000 * 60 * 60 * 24))
-        if (diff === 0) bookedAgo = 'Today'
+        if (diff <= 0) bookedAgo = 'Today'
         else if (diff === 1) bookedAgo = 'Yesterday'
         else bookedAgo = `${diff} days ago`
       }
