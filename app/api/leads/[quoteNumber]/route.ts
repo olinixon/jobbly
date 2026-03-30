@@ -177,8 +177,8 @@ export async function PATCH(
     }
   }
 
-  // Handle internal_notes update (admin only)
-  if (body.internal_notes !== undefined && session.user.role === 'ADMIN') {
+  // Handle internal_notes update (admin and subcontractor)
+  if (body.internal_notes !== undefined && (session.user.role === 'ADMIN' || session.user.role === 'SUBCONTRACTOR')) {
     await prisma.lead.update({ where: { id: lead.id }, data: { internal_notes: body.internal_notes } })
   }
 

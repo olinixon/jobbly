@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
 import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
 import AddToCalendarDropdown from '@/components/leads/AddToCalendarDropdown'
+import InternalNotesEditor from '@/components/leads/InternalNotesEditor'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -207,6 +208,26 @@ export default async function JobDetailPage({
             </div>
           )}
 
+          {/* Internal Notes — editable by subcontractor */}
+          <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+            <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-1">Internal Notes</h2>
+            <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] mb-3">Your own notes about this job.</p>
+            <InternalNotesEditor quoteNumber={job.quoteNumber} initialValue={job.internal_notes ?? ''} />
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <JobActions
+            quoteNumber={job.quoteNumber}
+            currentStatus={job.status}
+            hasInvoice={!!job.invoiceUrl}
+            invoiceUrl={job.invoiceUrl}
+            markupPercentage={job.campaign.markupPercentage}
+            jobTypes={jobTypes}
+            customerName={job.customerName}
+            propertyAddress={job.propertyAddress}
+          />
+
           {/* Financials (subcontractor-restricted: no commission or margin) */}
           {(job.contractorRate != null || job.customerPrice != null || job.grossMarkup != null) && (
             <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
@@ -244,19 +265,6 @@ export default async function JobDetailPage({
           {job.auditLogs.length > 0 && (
             <ActivityLog logs={job.auditLogs} />
           )}
-        </div>
-
-        <div className="space-y-6">
-          <JobActions
-            quoteNumber={job.quoteNumber}
-            currentStatus={job.status}
-            hasInvoice={!!job.invoiceUrl}
-            invoiceUrl={job.invoiceUrl}
-            markupPercentage={job.campaign.markupPercentage}
-            jobTypes={jobTypes}
-            customerName={job.customerName}
-            propertyAddress={job.propertyAddress}
-          />
         </div>
       </div>
     </AppShell>
