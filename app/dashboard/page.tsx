@@ -9,6 +9,7 @@ import LeadsTable from '@/components/leads/LeadsTable'
 import DashboardFilters from '@/components/dashboard/DashboardFilters'
 import DashboardExportButton from '@/components/dashboard/DashboardExportButton'
 import AddLeadModal from '@/components/dashboard/AddLeadModal'
+import CallStatCards from '@/components/dashboard/CallStatCards'
 import Link from 'next/link'
 import { computeUrgency } from '@/lib/urgency'
 
@@ -22,6 +23,39 @@ interface SearchParams {
   dateRange?: string
   from?: string
   to?: string
+}
+
+// Compute from/to ISO strings for the call stats API — covers all preset date ranges
+function getCallStatsRange(dateRange: string, from?: string, to?: string): { from?: string; to?: string } {
+  const now = new Date()
+  switch (dateRange) {
+    case 'today': {
+      const d = now.toISOString().split('T')[0]
+      return { from: d, to: d }
+    }
+    case 'last7': {
+      const start = new Date(now)
+      start.setDate(start.getDate() - 7)
+      return { from: start.toISOString().split('T')[0] }
+    }
+    case 'mtd':
+      return { from: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01` }
+    case 'last-month': {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const end = new Date(now.getFullYear(), now.getMonth(), 0)
+      return { from: start.toISOString().split('T')[0], to: end.toISOString().split('T')[0] }
+    }
+    case 'last-quarter': {
+      const q = Math.floor(now.getMonth() / 3)
+      const start = new Date(now.getFullYear(), (q - 1) * 3, 1)
+      const end = new Date(now.getFullYear(), q * 3, 0)
+      return { from: start.toISOString().split('T')[0], to: end.toISOString().split('T')[0] }
+    }
+    case 'custom':
+      return { from: from || undefined, to: to || undefined }
+    default:
+      return {}
+  }
 }
 
 function getDateFilter(dateRange: string, from?: string, to?: string): { gte?: Date; lte?: Date } | undefined {
@@ -91,6 +125,7 @@ export default async function DashboardPage({
   const pageSize = 50
 
   const dateFilter = getDateFilter(dateRange, fromParam, toParam)
+  const callStatsRange = getCallStatsRange(dateRange, fromParam, toParam)
 
   const isNeedsActionFilter = statusFilter === 'NEEDS_ACTION'
 
@@ -232,23 +267,46 @@ export default async function DashboardPage({
       />
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Total Leads" value={totalLeads} />
-        <StatCard label="Quotes Sent" value={quotesSent} />
-        <StatCard label="Jobs Booked" value={jobsBooked} />
-        <StatCard label="Jobs Completed" value={jobsCompleted} />
-        {isSubcontractor && (
+      {(isAdmin || isClient) ? (
+        <div className="mb-8 space-y-6">
+          {/* Row 1 — Call Activity */}
+          <div>
+            <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-2">Call Activity</p>
+            <CallStatCards from={callStatsRange.from} to={callStatsRange.to} />
+          </div>
+
+          {/* Row 2 — Pipeline */}
+          <div>
+            <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-2">Pipeline</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <StatCard label="Total Leads" value={totalLeads} />
+              <StatCard label="Quotes Sent" value={quotesSent} />
+              <StatCard label="Jobs Booked" value={jobsBooked} />
+              <StatCard label="Jobs Completed" value={jobsCompleted} />
+            </div>
+          </div>
+
+          {/* Row 3 — Financials */}
+          <div>
+            <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-2">Financials</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <StatCard label="Total Billed to Customers (ex GST)" value={`$${totalCustomerRevenue.toFixed(2)}`} />
+              <StatCard label="Our Margin (ex GST)" value={`$${campaignRevenue.toFixed(2)}`} />
+              {isAdmin && <StatCard label="Commission Received (ex GST)" value={`$${commissionEarned.toFixed(2)}`} />}
+              {isAdmin && <StatCard label="Commission Owed to Me (ex GST)" value={`$${commissionPending.toFixed(2)}`} />}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Subcontractor view — keep existing flat layout */
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard label="Total Leads" value={totalLeads} />
+          <StatCard label="Quotes Sent" value={quotesSent} />
+          <StatCard label="Jobs Booked" value={jobsBooked} />
+          <StatCard label="Jobs Completed" value={jobsCompleted} />
           <StatCard label="Total Jobs Revenue (ex GST)" value={`$${totalJobsRevenue.toFixed(2)}`} />
-        )}
-        {(isAdmin || isClient) && (
-          <StatCard label="Total Billed to Customers (ex GST)" value={`$${totalCustomerRevenue.toFixed(2)}`} />
-        )}
-        {(isAdmin || isClient) && (
-          <StatCard label="Our Margin (ex GST)" value={`$${campaignRevenue.toFixed(2)}`} />
-        )}
-        {isAdmin && <StatCard label="Commission Received (ex GST)" value={`$${commissionEarned.toFixed(2)}`} />}
-        {isAdmin && <StatCard label="Commission Owed to Me (ex GST)" value={`$${commissionPending.toFixed(2)}`} />}
-      </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="no-print">
