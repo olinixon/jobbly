@@ -144,7 +144,7 @@ export default async function DashboardPage({
     }),
     prisma.lead.findMany({
       where: needsActionBaseWhere,
-      select: { status: true, createdAt: true, jobBookedDate: true },
+      select: { status: true, createdAt: true, jobBookedDate: true, invoiceUrl: true },
     }),
   ])
   // Keep stats as alias for countStats for backward compat below

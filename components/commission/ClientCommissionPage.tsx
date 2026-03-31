@@ -125,7 +125,7 @@ export default function ClientCommissionPage({
     <>
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#111827] dark:text-[#F1F5F9]">Commission</h1>
+          <h1 className="text-2xl font-bold text-[#111827] dark:text-[#F1F5F9]">Financials</h1>
           <p className="mt-1 text-sm text-[#6B7280] dark:text-[#94A3B8]">Monthly markup summary — {campaignName}</p>
         </div>
 

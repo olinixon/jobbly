@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
@@ -9,6 +10,12 @@ import ClientCommissionPage from '@/components/commission/ClientCommissionPage'
 import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 
 export const revalidate = 30
+
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await auth()
+  const title = session?.user.role === 'CLIENT' ? 'Financials' : 'Commission'
+  return { title: `${title} | Jobbly` }
+}
 
 export default async function CommissionPage({
   searchParams,

@@ -6,6 +6,7 @@ export function computeUrgency(lead: {
   status: string
   createdAt: Date | string
   jobBookedDate?: Date | string | null
+  invoiceUrl?: string | null
 }): UrgencyLevel {
   const now = Date.now()
 
@@ -17,8 +18,12 @@ export function computeUrgency(lead: {
   }
 
   if (lead.status === 'JOB_BOOKED' && lead.jobBookedDate) {
-    const daysUntil = (new Date(lead.jobBookedDate).getTime() - now) / DAY_MS
-    if (daysUntil <= 2) return 'HIGH'
+    // Invoice uploaded — no action required
+    if (lead.invoiceUrl != null) return null
+    const daysSince = (now - new Date(lead.jobBookedDate).getTime()) / DAY_MS
+    if (daysSince >= 21) return 'HIGH'
+    if (daysSince >= 10) return 'MEDIUM'
+    return null
   }
 
   return null

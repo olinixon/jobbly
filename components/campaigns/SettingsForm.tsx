@@ -124,7 +124,7 @@ export default function SettingsForm({ campaign, jobTypes, availabilitySlots }: 
         </div>
       </Modal>
     )}
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-8 max-w-3xl mx-auto">
       {/* Section 1: General */}
       <section className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
         <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-5">General</h2>

@@ -66,7 +66,7 @@ export default async function JobsPage({
 
   const needsActionLeads = await prisma.lead.findMany({
     where: needsActionBaseWhere,
-    select: { status: true, createdAt: true, jobBookedDate: true },
+    select: { status: true, createdAt: true, jobBookedDate: true, invoiceUrl: true },
   })
   const needsActionCount = needsActionLeads.filter(l => computeUrgency(l) !== null).length
 

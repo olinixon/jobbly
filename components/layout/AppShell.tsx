@@ -17,7 +17,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
     if (campaignId) {
       const activeLeads = await prisma.lead.findMany({
         where: { campaignId, status: { not: 'JOB_COMPLETED' } },
-        select: { status: true, createdAt: true, jobBookedDate: true },
+        select: { status: true, createdAt: true, jobBookedDate: true, invoiceUrl: true },
       })
       needsActionCount = activeLeads.filter(l => computeUrgency(l) !== null).length
     }

@@ -30,6 +30,7 @@ export default async function NeedsActionPage() {
       status: true,
       createdAt: true,
       jobBookedDate: true,
+      invoiceUrl: true,
     },
     orderBy: { createdAt: 'asc' },
   })

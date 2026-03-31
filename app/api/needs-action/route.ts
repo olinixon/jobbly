@@ -26,6 +26,7 @@ export async function GET() {
       status: true,
       createdAt: true,
       jobBookedDate: true,
+      invoiceUrl: true,
     },
     orderBy: { createdAt: 'asc' },
   })
