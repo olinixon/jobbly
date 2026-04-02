@@ -202,8 +202,8 @@ export default function BookingSlotPicker({ token, jobTypeName, durationMinutes,
   if (slots.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-[#374151] font-medium mb-1">No times are currently available for booking.</p>
-        <p className="text-sm text-[#6B7280]">Please contact us to arrange a time.</p>
+        <p className="text-[#374151] font-medium mb-1">No times are currently available.</p>
+        <p className="text-sm text-[#6B7280]">If you&apos;d like to arrange a time, please reply to your quote email and we&apos;ll be in touch.</p>
       </div>
     )
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { nzLocalToUtc } from '@/lib/generateCalendarLinks'
 
 function generateWindows(startTime: string, endTime: string, durationMinutes: number) {
   const toMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
@@ -86,9 +87,11 @@ export async function GET(
   })
 
   const now = new Date()
+  const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000)
 
   const slots = rawSlots.map(slot => {
     const windows = generateWindows(slot.startTime, slot.endTime, durationMinutes)
+    const slotDateNZ = slot.date.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
 
     const windowsWithStatus = windows.map(w => {
       const confirmedBooking = slot.bookings.find(
@@ -122,12 +125,18 @@ export async function GET(
       }
     }).filter(Boolean)
 
+    // Filter out windows that start within 2 hours of now (NZ time)
+    const futureWindows = windowsWithStatus.filter(w => {
+      const windowStartUtc = nzLocalToUtc(slotDateNZ, (w as { windowStart: string }).windowStart)
+      return windowStartUtc > twoHoursFromNow
+    })
+
     return {
       id: slot.id,
       date: slot.date.toISOString(),
       startTime: slot.startTime,
       endTime: slot.endTime,
-      windows: windowsWithStatus,
+      windows: futureWindows,
     }
   }).filter(s => s.windows.length > 0)
 
