@@ -112,6 +112,10 @@ model Lead {
   quoteOptions                Json?      // Array of AI-parsed quote options — see ParsedQuoteOption in lib/parseQuotePdf.ts
   quoteValidationOverridden   Boolean?   @default(false)
   needsReview                 Boolean    @default(false)
+  duplicate_dismissed         Boolean    @default(false)
+  duplicate_confidence        String?    // 'high' or 'medium' — null if no duplicate found
+  duplicate_reason            String?    // e.g. "Same phone number and address"
+  duplicate_lead_id           String?    // quote_number of the matched lead
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 

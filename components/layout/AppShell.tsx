@@ -15,11 +15,16 @@ export default async function AppShell({ children }: { children: React.ReactNode
   if (session.user.role === 'ADMIN' || session.user.role === 'SUBCONTRACTOR') {
     const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
     if (campaignId) {
-      const activeLeads = await prisma.lead.findMany({
-        where: { campaignId, status: { not: 'JOB_COMPLETED' } },
-        select: { status: true, createdAt: true, jobBookedDate: true, invoiceUrl: true },
-      })
-      needsActionCount = activeLeads.filter(l => computeUrgency(l) !== null).length
+      const [activeLeads, duplicateCount] = await Promise.all([
+        prisma.lead.findMany({
+          where: { campaignId, status: { not: 'JOB_COMPLETED' } },
+          select: { status: true, createdAt: true, jobBookedDate: true, invoiceUrl: true },
+        }),
+        prisma.lead.count({
+          where: { campaignId, duplicate_confidence: { not: null }, duplicate_dismissed: false },
+        }),
+      ])
+      needsActionCount = activeLeads.filter(l => computeUrgency(l) !== null).length + duplicateCount
     }
   }
 

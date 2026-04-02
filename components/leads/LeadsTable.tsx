@@ -16,6 +16,9 @@ interface Lead {
   customerPrice: number | null
   omnisideCommission: number | null
   urgencyLevel?: 'HIGH' | 'MEDIUM' | null
+  duplicate_confidence?: string | null
+  duplicate_dismissed?: boolean
+  duplicate_lead_id?: string | null
 }
 
 interface LeadsTableProps {
@@ -49,6 +52,12 @@ export default function LeadsTable({ leads, isAdmin, role }: LeadsTableProps) {
               <div className="flex items-center gap-1.5">
                 {lead.urgencyLevel === 'HIGH' && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Urgent" />}
                 {lead.urgencyLevel === 'MEDIUM' && <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Needs attention" />}
+                {lead.duplicate_confidence && !lead.duplicate_dismissed && (
+                  <span
+                    title={`${lead.duplicate_confidence === 'high' ? 'Possible duplicate' : 'Check for duplicate'} — matches ${lead.duplicate_lead_id}`}
+                    className={`text-sm ${lead.duplicate_confidence === 'high' ? 'text-amber-500' : 'text-yellow-400'}`}
+                  >⚠️</span>
+                )}
                 <span className="font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">{lead.quoteNumber}</span>
               </div>
               <Badge status={lead.status} />
@@ -88,6 +97,12 @@ export default function LeadsTable({ leads, isAdmin, role }: LeadsTableProps) {
                   <div className="flex items-center gap-1.5">
                     {lead.urgencyLevel === 'HIGH' && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Urgent" />}
                     {lead.urgencyLevel === 'MEDIUM' && <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Needs attention" />}
+                    {lead.duplicate_confidence && !lead.duplicate_dismissed && (
+                      <span
+                        title={`${lead.duplicate_confidence === 'high' ? 'Possible duplicate' : 'Check for duplicate'} — matches ${lead.duplicate_lead_id}`}
+                        className={`text-sm ${lead.duplicate_confidence === 'high' ? 'text-amber-500' : 'text-yellow-400'}`}
+                      >⚠️</span>
+                    )}
                     {lead.quoteNumber}
                   </div>
                 </td>

@@ -7,6 +7,7 @@ import { calculateCommission } from '@/lib/calculateCommission'
 import { sendNewLeadEmail } from '@/lib/notifications'
 import { parseStoreys } from '@/lib/parseStoreys'
 import { normalisePhone } from '@/lib/normalisePhone'
+import { detectDuplicate } from '@/lib/detectDuplicate'
 
 const toStringOrNull = (val: unknown): string | null =>
   typeof val === 'string' && val.trim() !== '' ? val.trim() : null;
@@ -141,6 +142,29 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         console.error('New lead email failed:', err)
+      }
+    })()
+
+    // Duplicate detection — after lead created and emails fired
+    ;(async () => {
+      try {
+        const duplicate = await detectDuplicate(
+          lead.customerPhone,
+          lead.propertyAddress,
+          lead.id
+        )
+        if (duplicate) {
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              duplicate_confidence: duplicate.confidence,
+              duplicate_reason: duplicate.reason,
+              duplicate_lead_id: duplicate.matched_quote_number,
+            },
+          })
+        }
+      } catch (err) {
+        console.error('Duplicate detection failed:', err)
       }
     })()
 

@@ -40,5 +40,25 @@ export async function GET() {
       return a.urgencyLevel === 'HIGH' ? -1 : 1
     })
 
-  return NextResponse.json(urgent)
+  // Duplicate leads — undismissed warnings
+  const duplicateLeads = await prisma.lead.findMany({
+    where: {
+      campaignId,
+      duplicate_confidence: { not: null },
+      duplicate_dismissed: false,
+    },
+    select: {
+      id: true,
+      quoteNumber: true,
+      customerName: true,
+      propertyAddress: true,
+      duplicate_confidence: true,
+      duplicate_reason: true,
+      duplicate_lead_id: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return NextResponse.json({ urgent, duplicateLeads })
 }

@@ -12,6 +12,7 @@ import { formatDateTime, formatDate } from '@/lib/formatDate'
 import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
 import AddToCalendarDropdown from '@/components/leads/AddToCalendarDropdown'
 import DeleteLeadButton from '@/components/leads/DeleteLeadButton'
+import DuplicateWarningBanner from '@/components/leads/DuplicateWarningBanner'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -84,6 +85,14 @@ export default async function LeadDetailPage({
     ? `${slotDateFormatted} — ${fmt12h(booking.windowStart)} – ${fmt12h(booking.windowEnd)}`
     : lead.jobBookedDate ? `${formatDate(lead.jobBookedDate)} — —` : null
 
+  // Fetch matched duplicate lead details if warning is active
+  const matchedDuplicateLead = (lead.duplicate_confidence && !lead.duplicate_dismissed && lead.duplicate_lead_id)
+    ? await prisma.lead.findUnique({
+        where: { quoteNumber: lead.duplicate_lead_id },
+        select: { customerName: true },
+      })
+    : null
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const calendarLinks = (booking && slot && lead.bookingToken && slotDateNZ)
     ? generateCalendarLinks({
@@ -117,6 +126,18 @@ export default async function LeadDetailPage({
           <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">Needs Review</span>
         )}
       </div>
+
+      {/* Duplicate warning banner */}
+      {lead.duplicate_confidence && !lead.duplicate_dismissed && lead.duplicate_lead_id && (
+        <DuplicateWarningBanner
+          quoteNumber={lead.quoteNumber}
+          confidence={lead.duplicate_confidence}
+          reason={lead.duplicate_reason ?? ''}
+          matchedQuoteNumber={lead.duplicate_lead_id}
+          matchedCustomerName={matchedDuplicateLead?.customerName ?? ''}
+          isAdmin={isAdmin}
+        />
+      )}
 
       {/* Status pipeline */}
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 mb-6 shadow-sm">

@@ -5,6 +5,7 @@ import { normalisePhone } from '@/lib/normalisePhone'
 import { generateMapsUrl } from '@/lib/generateMapsUrl'
 import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 import { sendNewLeadEmail } from '@/lib/notifications'
+import { detectDuplicate } from '@/lib/detectDuplicate'
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -97,6 +98,25 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         console.error('New lead email (manual) failed:', err)
+      }
+    })()
+
+    // Duplicate detection — after lead created and emails fired
+    ;(async () => {
+      try {
+        const duplicate = await detectDuplicate(lead.customerPhone, lead.propertyAddress, lead.id)
+        if (duplicate) {
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              duplicate_confidence: duplicate.confidence,
+              duplicate_reason: duplicate.reason,
+              duplicate_lead_id: duplicate.matched_quote_number,
+            },
+          })
+        }
+      } catch (err) {
+        console.error('Duplicate detection (manual) failed:', err)
       }
     })()
 
