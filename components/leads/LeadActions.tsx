@@ -31,7 +31,7 @@ interface LeadActionsProps {
   propertyAddress?: string
 }
 
-type UploadStep = 'drop' | 'uploading' | 'confirm' | 'fallback' | 'manual'
+type UploadStep = 'drop' | 'uploading' | 'confirm' | 'fallback' | 'manual' | 'invoice_quote_mismatch'
 type QuoteUploadStep = 'drop' | 'uploading' | 'mismatch' | 'success'
 
 interface ParsedResult {
@@ -98,6 +98,7 @@ export default function LeadActions({
   const [editMode, setEditMode] = useState(false)
   const [editValues, setEditValues] = useState({ customerPrice: '', contractorRate: '', grossMarkup: '', omnisideCommission: '', clientMargin: '' })
   const [confirming, setConfirming] = useState(false)
+  const [invoiceMismatch, setInvoiceMismatch] = useState<{ extracted_quote_number: string; expected_quote_number: string; fileUrl: string } | null>(null)
 
   const currentIdx = STATUS_ORDER.indexOf(currentStatus)
   const nextStatus = currentIdx < STATUS_ORDER.length - 1 ? STATUS_ORDER[currentIdx + 1] : null
@@ -176,15 +177,21 @@ export default function LeadActions({
     setSelectedFile(f)
   }
 
-  async function uploadFile() {
+  async function uploadFile(overrideQuoteMismatch = false) {
     if (!selectedFile) return
     setUploadStep('uploading')
     setFileError('')
     const fd = new FormData()
     fd.append('file', selectedFile)
     fd.append('quoteNumber', quoteNumber)
+    if (overrideQuoteMismatch) fd.append('override_quote_mismatch', 'true')
     const res = await fetch('/api/upload', { method: 'POST', body: fd })
     const data = await res.json()
+    if (res.status === 422 && data.error === 'invoice_quote_mismatch') {
+      setInvoiceMismatch({ extracted_quote_number: data.extracted_quote_number, expected_quote_number: data.expected_quote_number, fileUrl: data.fileUrl })
+      setUploadStep('invoice_quote_mismatch')
+      return
+    }
     if (!res.ok) {
       setFileError(data.error ?? 'Upload failed.')
       setUploadStep('drop')
@@ -339,6 +346,7 @@ export default function LeadActions({
     setFallbackFileInfo(null)
     setManualPrice('')
     setEditMode(false)
+    setInvoiceMismatch(null)
   }
 
   const confirmDisabled = saving || (nextStatus === 'JOB_COMPLETED' && !hasInvoice) || (isBookingStep && bookedDateFilled && !bookedDateValid)
@@ -480,7 +488,7 @@ export default function LeadActions({
               {fileError && <p className="text-sm text-[#DC2626]">{fileError}</p>}
               <div className="flex gap-3 justify-end">
                 <Button variant="secondary" onClick={closeInvoiceModal}>Cancel</Button>
-                <Button onClick={uploadFile} disabled={!selectedFile}>Upload</Button>
+                <Button onClick={() => uploadFile()} disabled={!selectedFile}>Upload</Button>
               </div>
             </div>
           )}
@@ -490,6 +498,34 @@ export default function LeadActions({
             <div className="py-12 flex flex-col items-center gap-4">
               <div className="w-10 h-10 border-4 border-[#E5E7EB] dark:border-[#334155] border-t-[#2563EB] rounded-full animate-spin" />
               <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">Uploading and reading invoice…</p>
+            </div>
+          )}
+
+          {/* STEP: invoice_quote_mismatch */}
+          {uploadStep === 'invoice_quote_mismatch' && invoiceMismatch && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl">
+                <span className="text-lg leading-none mt-0.5">❌</span>
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-[#111827] dark:text-[#F1F5F9]">Quote number doesn&apos;t match</p>
+                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">
+                    The invoice appears to reference quote number &quot;{invoiceMismatch.extracted_quote_number}&quot;,
+                    but this job is for quote number {invoiceMismatch.expected_quote_number}.
+                  </p>
+                  <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Please check you&apos;ve uploaded the correct invoice.</p>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button variant="secondary" onClick={() => { setUploadStep('drop'); setSelectedFile(null); setInvoiceMismatch(null) }}>
+                  Try again
+                </Button>
+                <button
+                  onClick={() => uploadFile(true)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+                >
+                  Upload anyway
+                </button>
+              </div>
             </div>
           )}
 

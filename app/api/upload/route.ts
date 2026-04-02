@@ -10,13 +10,27 @@ const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 const MAX_SIZE = 10 * 1024 * 1024 // 10MB
 
 const PARSE_SYSTEM_PROMPT = `You are an invoice parser for a New Zealand business.
-Extract the total amount charged EXCLUDING GST (the ex-GST subtotal) from this invoice.
-If the invoice shows a GST-inclusive total only, divide by 1.15 to calculate the ex-GST amount.
-Return ONLY a JSON object in this exact format, nothing else:
-{ "customer_price_ex_gst": 250.00, "currency": "NZD", "gst_inclusive_total": 287.50, "confidence": "high" }
-If you cannot find a clear total, return:
-{ "customer_price_ex_gst": null, "currency": null, "gst_inclusive_total": null, "confidence": "low", "reason": "brief explanation" }
-Do not include any other text, explanation, or markdown.`
+
+Extract the following from this invoice:
+1. The total amount charged EXCLUDING GST (the ex-GST subtotal). If the invoice shows a GST-inclusive total only, divide by 1.15 to calculate the ex-GST amount.
+2. The quote number, reference number, job number, or any similar identifier on the invoice.
+
+Return ONLY a valid JSON object in this exact format, nothing else:
+{
+  "customer_price_ex_gst": 250.00,
+  "currency": "NZD",
+  "gst_inclusive_total": 287.50,
+  "confidence": "high",
+  "extracted_quote_number": "QU00103"
+}
+
+If you cannot find a clear total, set "customer_price_ex_gst" to null and "confidence" to "low".
+If you cannot find a quote/reference number, set "extracted_quote_number" to null.
+Do not include any other text, explanation, or markdown — just the raw JSON object.`
+
+function normaliseQuoteNumber(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -26,6 +40,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   const quoteNumber = formData.get('quoteNumber') as string | null
+  const overrideQuoteMismatch = formData.get('override_quote_mismatch') === 'true'
 
   if (!file || !quoteNumber) {
     return NextResponse.json({ error: 'Missing file or quoteNumber' }, { status: 400 })
@@ -64,6 +79,7 @@ export async function POST(request: NextRequest) {
   let aiRaw: string | null = null
   let customerPrice: number | null = null
   let aiConfidence = 'low'
+  let extractedQuoteNumber: string | null = null
   let parseFailed = false
 
   try {
@@ -83,7 +99,7 @@ export async function POST(request: NextRequest) {
               type: contentType === 'application/pdf' ? 'document' : 'image',
               source: { type: 'base64', media_type: contentType as 'application/pdf' | 'image/jpeg' | 'image/png', data: base64Data },
             } as ContentBlockParam,
-            { type: 'text', text: 'Extract the ex-GST total from this invoice.' } as ContentBlockParam,
+            { type: 'text', text: 'Extract the ex-GST total and quote/reference number from this invoice.' } as ContentBlockParam,
           ],
         },
       ],
@@ -96,10 +112,28 @@ export async function POST(request: NextRequest) {
       if (parsed.customer_price_ex_gst != null && typeof parsed.customer_price_ex_gst === 'number') {
         customerPrice = parsed.customer_price_ex_gst
       }
+      if (parsed.extracted_quote_number != null && typeof parsed.extracted_quote_number === 'string') {
+        extractedQuoteNumber = parsed.extracted_quote_number
+      }
     }
   } catch (err) {
     console.error('AI invoice parse error:', err)
     parseFailed = true
+  }
+
+  // Quote number validation — skip if override flag is set
+  if (!overrideQuoteMismatch && extractedQuoteNumber !== null && aiConfidence === 'high') {
+    const extractedNormalised = normaliseQuoteNumber(extractedQuoteNumber)
+    const expectedNormalised = normaliseQuoteNumber(lead.quoteNumber)
+    if (extractedNormalised !== expectedNormalised) {
+      return NextResponse.json({
+        success: false,
+        error: 'invoice_quote_mismatch',
+        extracted_quote_number: extractedQuoteNumber,
+        expected_quote_number: lead.quoteNumber,
+        fileUrl,
+      }, { status: 422 })
+    }
   }
 
   if (customerPrice == null || aiConfidence === 'low') {
