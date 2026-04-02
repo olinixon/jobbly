@@ -36,7 +36,32 @@ export default function LeadsTable({ leads, isAdmin, role }: LeadsTableProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
+    <>
+      {/* Mobile card layout */}
+      <div className="block md:hidden space-y-3">
+        {leads.map((lead) => (
+          <div
+            key={lead.id}
+            onClick={() => handleRowClick(lead.quoteNumber)}
+            className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-4 shadow-sm cursor-pointer active:opacity-80 transition-opacity"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                {lead.urgencyLevel === 'HIGH' && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title="Urgent" />}
+                {lead.urgencyLevel === 'MEDIUM' && <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Needs attention" />}
+                <span className="font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">{lead.quoteNumber}</span>
+              </div>
+              <Badge status={lead.status} />
+            </div>
+            <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.customerName}</p>
+            <p className="text-sm text-[#6B7280] dark:text-[#94A3B8] truncate">{lead.propertyAddress}</p>
+            <p className="text-xs text-[#9CA3AF] dark:text-[#475569] mt-1">{formatDateTime(lead.createdAt)}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -100,6 +125,7 @@ export default function LeadsTable({ leads, isAdmin, role }: LeadsTableProps) {
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
