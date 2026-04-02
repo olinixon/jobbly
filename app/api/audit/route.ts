@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
   if (campaignId) where.campaignId = campaignId
   if (search) {
     where.OR = [
-      { lead: { quoteNumber: { contains: search } } },
-      { changedByName: { contains: search } },
+      { lead: { quoteNumber: { contains: search, mode: 'insensitive' } } },
+      { changedByName: { contains: search, mode: 'insensitive' } },
     ]
   }
   if (from || to) {

@@ -30,8 +30,8 @@ export default async function JobsPage({
   if (session.user.campaignId) baseWhere.campaignId = session.user.campaignId
   if (search) {
     baseWhere.OR = [
-      { quoteNumber: { contains: search } },
-      { customerName: { contains: search } },
+      { quoteNumber: { contains: search, mode: 'insensitive' } },
+      { customerName: { contains: search, mode: 'insensitive' } },
     ]
   }
 
