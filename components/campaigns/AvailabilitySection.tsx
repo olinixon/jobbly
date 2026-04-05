@@ -54,6 +54,7 @@ function isPast(dateStr: string): boolean {
 
 export default function AvailabilitySection({ campaignId, initialSlots, jobTypes }: Props) {
   const [slots, setSlots] = useState<Slot[]>(initialSlots)
+  const [view, setView] = useState<'upcoming' | 'past'>('upcoming')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDate, setEditDate] = useState('')
   const [editStart, setEditStart] = useState('')
@@ -67,11 +68,22 @@ export default function AvailabilitySection({ campaignId, initialSlots, jobTypes
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const minDuration = jobTypes.length > 0
     ? Math.min(...jobTypes.map(jt => jt.durationMinutes))
     : 0
+
+  const upcomingSlots = slots
+    .filter(s => !isPast(s.date))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  const pastSlots = slots
+    .filter(s => isPast(s.date))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const visibleSlots = view === 'upcoming' ? upcomingSlots : pastSlots
 
   function startEdit(slot: Slot) {
     setEditingId(slot.id)
@@ -95,12 +107,13 @@ export default function AvailabilitySection({ campaignId, initialSlots, jobTypes
     setSaving(null)
     if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Save failed.'); return }
     const updated = await res.json()
-    setSlots(prev => prev.map(s => s.id === id ? updated : s))
+    setSlots(prev => prev.map(s => s.id === id ? { ...updated, date: updated.date ?? s.date } : s))
     setEditingId(null)
   }
 
-  async function deleteSlot(id: string) {
+  async function confirmDelete(id: string) {
     setDeleting(id)
+    setDeleteConfirmId(null)
     setError('')
     const res = await fetch(`/api/campaigns/${campaignId}/availability/${id}`, { method: 'DELETE' })
     setDeleting(null)
@@ -121,10 +134,12 @@ export default function AvailabilitySection({ campaignId, initialSlots, jobTypes
     setAdding(false)
     if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Add failed.'); return }
     const created = await res.json()
-    setSlots(prev => [...prev, created].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()))
+    setSlots(prev => [...prev, created])
     setAddDate(''); setAddStart(''); setAddEnd(''); setAddNotes('')
     setShowAddForm(false)
   }
+
+  const deleteConfirmSlot = deleteConfirmId ? slots.find(s => s.id === deleteConfirmId) : null
 
   return (
     <section className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
@@ -169,11 +184,60 @@ export default function AvailabilitySection({ campaignId, initialSlots, jobTypes
         </div>
       )}
 
-      {slots.length === 0 ? (
-        <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">No availability slots defined yet. Add a slot to allow customers to book jobs.</p>
+      {/* Upcoming / Past toggle */}
+      <div className="flex gap-1 mb-4 p-1 bg-[#F3F4F6] dark:bg-[#0F172A] rounded-lg w-fit">
+        <button
+          onClick={() => setView('upcoming')}
+          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            view === 'upcoming'
+              ? 'bg-white dark:bg-[#1E293B] text-[#111827] dark:text-[#F1F5F9] shadow-sm'
+              : 'text-[#6B7280] dark:text-[#94A3B8] hover:text-[#374151] dark:hover:text-[#CBD5E1]'
+          }`}
+        >
+          Upcoming
+        </button>
+        <button
+          onClick={() => setView('past')}
+          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            view === 'past'
+              ? 'bg-white dark:bg-[#1E293B] text-[#111827] dark:text-[#F1F5F9] shadow-sm'
+              : 'text-[#6B7280] dark:text-[#94A3B8] hover:text-[#374151] dark:hover:text-[#CBD5E1]'
+          }`}
+        >
+          Past
+        </button>
+      </div>
+
+      {/* Delete confirmation dialog */}
+      {deleteConfirmSlot && (
+        <div className="mb-4 p-4 border border-[#DC2626]/30 rounded-xl bg-[#FEF2F2] dark:bg-[#DC2626]/10 space-y-3">
+          <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">Are you sure you want to delete this slot?</p>
+          <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">
+            {formatSlotDate(deleteConfirmSlot.date)} &middot; {fmt12h(deleteConfirmSlot.startTime)} &ndash; {fmt12h(deleteConfirmSlot.endTime)}
+          </p>
+          <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">This cannot be undone.</p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <button
+              onClick={() => confirmDelete(deleteConfirmSlot.id)}
+              disabled={!!deleting}
+              className="px-4 py-1.5 text-sm font-medium text-white bg-[#DC2626] hover:bg-[#B91C1C] disabled:opacity-50 rounded-lg transition-colors"
+            >
+              {deleting === deleteConfirmSlot.id ? 'Deleting…' : 'Delete slot'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {visibleSlots.length === 0 ? (
+        <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">
+          {view === 'upcoming'
+            ? 'No upcoming availability slots. Add a slot above to get started.'
+            : 'No past slots found.'}
+        </p>
       ) : (
         <div className="space-y-3">
-          {slots.map(slot => {
+          {visibleSlots.map(slot => {
             const past = isPast(slot.date)
             const possible = minDuration > 0 ? totalPossibleWindows(slot.startTime, slot.endTime, minDuration) : null
 
@@ -221,21 +285,19 @@ export default function AvailabilitySection({ campaignId, initialSlots, jobTypes
                         {possible !== null && ` / ${possible} possible`}
                       </p>
                     </div>
-                    {!past && (
-                      <div className="flex gap-2 shrink-0">
-                        <Button variant="secondary" onClick={() => startEdit(slot)} disabled={!!saving || !!deleting}>
-                          Edit
-                        </Button>
-                        <button
-                          onClick={() => deleteSlot(slot.id)}
-                          disabled={!!deleting || slot.confirmedBookings > 0}
-                          title={slot.confirmedBookings > 0 ? 'Cannot delete a slot with confirmed bookings' : undefined}
-                          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[#DC2626]/30 text-[#DC2626] hover:bg-[#FEF2F2] dark:hover:bg-[#DC2626]/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                          {deleting === slot.id ? 'Deleting…' : 'Delete'}
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-2 shrink-0">
+                      <Button variant="secondary" onClick={() => startEdit(slot)} disabled={!!saving || !!deleting}>
+                        Edit
+                      </Button>
+                      <button
+                        onClick={() => slot.confirmedBookings === 0 ? setDeleteConfirmId(slot.id) : undefined}
+                        disabled={!!deleting || slot.confirmedBookings > 0}
+                        title={slot.confirmedBookings > 0 ? 'Cannot delete — this slot has confirmed bookings' : undefined}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[#DC2626]/30 text-[#DC2626] hover:bg-[#FEF2F2] dark:hover:bg-[#DC2626]/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {deleting === slot.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
