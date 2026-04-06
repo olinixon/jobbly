@@ -43,15 +43,19 @@ export default function InvoiceReminderSettings({ initialDay }: Props) {
         <select
           value={day ?? ''}
           onChange={e => setDay(e.target.value ? Number(e.target.value) : null)}
-          className="px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+          className="px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB] appearance-none"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '2rem' }}
         >
           <option value="">— no reminder —</option>
-          {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+          {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
             <option key={d} value={d}>{ordinal(d)}</option>
           ))}
         </select>
         <p className="mt-1.5 text-xs text-[#9CA3AF] dark:text-[#475569]">
           You'll receive an email on this day each month with a link to send your invoice.
+        </p>
+        <p className="mt-1 text-xs text-[#9CA3AF] dark:text-[#475569]">
+          Note: if your chosen day doesn't exist in a given month (e.g. the 31st in April), the reminder will fire on the last day of that month instead.
         </p>
       </div>
 

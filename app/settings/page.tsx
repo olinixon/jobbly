@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import SettingsForm from '@/components/campaigns/SettingsForm'
+import CampaignDangerZone from '@/components/campaigns/CampaignDangerZone'
 import StripeConnectionSetup from '@/components/settings/StripeConnectionSetup'
 import InvoiceReminderSettings from '@/components/settings/InvoiceReminderSettings'
 import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
@@ -78,7 +79,7 @@ export default async function SettingsPage() {
               <h3 className="text-sm font-semibold text-[#374151] dark:text-[#CBD5E1] mb-3">Stripe Connection</h3>
               <StripeConnectionSetup
                 role="ADMIN"
-                senderCompanyName="Omniside AI"
+                senderCompanyName={billingProfile?.company_name ?? 'Omniside AI'}
                 recipientCompanyName={campaign.clientCompanyName}
                 initialProfile={profileSummary}
               />
@@ -90,6 +91,11 @@ export default async function SettingsPage() {
             </div>
           </div>
         </section>
+      </div>
+
+      {/* Danger Zone — always last */}
+      <div className="max-w-3xl mx-auto mt-8">
+        <CampaignDangerZone campaignId={campaignId} />
       </div>
     </AppShell>
   )

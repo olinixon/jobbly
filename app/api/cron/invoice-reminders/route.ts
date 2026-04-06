@@ -13,9 +13,16 @@ export async function GET(request: NextRequest) {
   const today = new Date()
   const dayOfMonth = today.getDate()
 
-  // Find all users with a reminder set for today
+  // Check if today is the last day of the month
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+  const isLastDayOfMonth = dayOfMonth === lastDayOfMonth
+
+  // Match users whose reminder day is today, OR — on the last day of shorter months —
+  // users whose reminder day is beyond the last day of this month (e.g. day 31 in April)
   const users = await prisma.user.findMany({
-    where: { invoice_reminder_day: dayOfMonth },
+    where: isLastDayOfMonth
+      ? { invoice_reminder_day: { gte: dayOfMonth } }
+      : { invoice_reminder_day: dayOfMonth },
     select: {
       id: true,
       name: true,
