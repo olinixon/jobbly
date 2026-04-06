@@ -30,21 +30,23 @@ model Campaign {
   reconciliationBatches ReconciliationBatch[]
   jobTypes              JobType[]
   availabilitySlots     AvailabilitySlot[]
+  billing_profiles      BillingProfile[]
 }
 
 model User {
-  id                   String    @id @default(uuid())
-  name                 String
-  email                String    @unique
-  passwordHash         String
-  role                 Role
-  campaignId           String?
-  isActive             Boolean   @default(true)
-  lastLoginAt          DateTime?
-  notifyNewLead        Boolean   @default(true)
-  notifyJobCompleted   Boolean   @default(true)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                    String    @id @default(uuid())
+  name                  String
+  email                 String    @unique
+  passwordHash          String
+  role                  Role
+  campaignId            String?
+  isActive              Boolean   @default(true)
+  lastLoginAt           DateTime?
+  notifyNewLead         Boolean   @default(true)
+  notifyJobCompleted    Boolean   @default(true)
+  invoice_reminder_day  Int?      // day of month (1–28) to receive reminder email; null = no reminder
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   campaign             Campaign?             @relation(fields: [campaignId], references: [id])
   auditLogs            AuditLog[]
@@ -138,6 +140,9 @@ model ReconciliationBatch {
   totalCommission      Float
   reconciled           Boolean   @default(false)
   reconciledAt         DateTime?
+  stripe_invoice_id    String?   // populated once the Stripe invoice is created and sent
+  invoice_sent_at      DateTime? // timestamp when the invoice was sent via Stripe
+  invoice_sent_by      String?   // user ID of who pressed "Confirm & Send"
   createdAt            DateTime  @default(now())
 
   campaign Campaign @relation(fields: [campaignId], references: [id])
@@ -203,6 +208,24 @@ model Booking {
 
   slot AvailabilitySlot @relation(fields: [slotId], references: [id])
   lead Lead             @relation(fields: [leadId], references: [id])
+}
+
+model BillingProfile {
+  id                    String    @id @default(uuid())
+  campaign_id           String
+  campaign              Campaign  @relation(fields: [campaign_id], references: [id])
+  company_name          String
+  billing_email         String
+  billing_address       String?
+  stripe_customer_id    String
+  stripe_secret_key     String    // encrypted at rest — never stored plain text
+  stripe_gst_rate_id    String    // the txr_... ID of the 15% GST tax rate in this user's Stripe account
+  stripe_verified       Boolean   @default(false)
+  stripe_verified_at    DateTime?
+  role                  String    // "ADMIN" | "CLIENT"
+  created_at            DateTime  @default(now())
+
+  @@unique([campaign_id, role])
 }
 
 enum Role {
