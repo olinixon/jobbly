@@ -140,10 +140,13 @@ model ReconciliationBatch {
   totalCommission      Float
   reconciled           Boolean   @default(false)
   reconciledAt         DateTime?
-  stripe_invoice_id    String?   // populated once the Stripe invoice is created and sent
-  invoice_sent_at      DateTime? // timestamp when the invoice was sent via Stripe
-  invoice_sent_by      String?   // user ID of who pressed "Confirm & Send"
-  createdAt            DateTime  @default(now())
+  stripe_invoice_id         String?   // admin → client invoice ID (populated once sent)
+  invoice_sent_at           DateTime? // timestamp when admin invoice was sent
+  invoice_sent_by           String?   // user ID of admin who pressed "Confirm & Send"
+  client_stripe_invoice_id  String?   // client → subcontractor invoice ID
+  client_invoice_sent_at    DateTime? // timestamp when client invoice was sent
+  client_invoice_sent_by    String?   // user ID of client who pressed "Confirm & Send"
+  createdAt                 DateTime  @default(now())
 
   campaign Campaign @relation(fields: [campaignId], references: [id])
   leads    Lead[]
