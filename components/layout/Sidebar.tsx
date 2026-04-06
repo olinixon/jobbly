@@ -30,6 +30,7 @@ const adminNav: NavItem[] = [
 const clientNav: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: '📊' },
   { label: 'Financials', href: '/commission', icon: '💰' },
+  { label: 'Settings', href: '/client/settings', icon: '⚙️' },
 ]
 
 const subcontractorNav: NavItem[] = [

@@ -30,23 +30,34 @@ export default async function CommissionPage({
   // Client commission view — delegate entirely to dedicated component
   if (role === 'CLIENT') {
     const sp = await searchParams
-    const campaign = session.user.campaignId
-      ? await prisma.campaign.findUnique({
-          where: { id: session.user.campaignId },
-          select: { name: true, clientCompanyName: true, subcontractorCompanyName: true },
-        })
-      : null
+    const campaignId = session.user.campaignId
+
+    const [campaign, clientBillingProfile] = await Promise.all([
+      campaignId
+        ? prisma.campaign.findUnique({
+            where: { id: campaignId },
+            select: { name: true, clientCompanyName: true, subcontractorCompanyName: true },
+          })
+        : null,
+      campaignId
+        ? prisma.billingProfile.findUnique({
+            where: { campaign_id_role: { campaign_id: campaignId, role: 'CLIENT' } },
+            select: { stripe_verified: true },
+          })
+        : null,
+    ])
 
     return (
       <AppShell>
         <ClientCommissionPage
-          campaignId={session.user.campaignId ?? ''}
+          campaignId={campaignId ?? ''}
           campaignName={campaign?.name ?? ''}
           clientCompanyName={campaign?.clientCompanyName ?? ''}
           subcontractorCompanyName={campaign?.subcontractorCompanyName ?? ''}
           initialDateRange={sp.dateRange ?? 'all-time'}
           initialFrom={sp.from ?? ''}
           initialTo={sp.to ?? ''}
+          stripeVerified={clientBillingProfile?.stripe_verified ?? false}
         />
       </AppShell>
     )
@@ -57,10 +68,18 @@ export default async function CommissionPage({
   const where: Record<string, unknown> = { status: 'JOB_COMPLETED' }
   if (campaignId) where.campaignId = campaignId
 
-  const leads = await prisma.lead.findMany({
-    where,
-    select: { omnisideCommission: true, reconciliationBatchId: true },
-  })
+  const [leads, billingProfile] = await Promise.all([
+    prisma.lead.findMany({
+      where,
+      select: { omnisideCommission: true, reconciliationBatchId: true },
+    }),
+    campaignId
+      ? prisma.billingProfile.findUnique({
+          where: { campaign_id_role: { campaign_id: campaignId, role: 'ADMIN' } },
+          select: { stripe_verified: true },
+        })
+      : null,
+  ])
 
   const totalCompleted = leads.length
   const totalEarned = leads.filter(l => l.reconciliationBatchId != null).reduce((s, l) => s + (l.omnisideCommission ?? 0), 0)
@@ -78,7 +97,7 @@ export default async function CommissionPage({
         <StatCard label="Avg Commission (ex GST)" value={`$${avgCommission.toFixed(2)}`} />
       </div>
 
-      <CommissionPageClient />
+      <CommissionPageClient stripeVerified={billingProfile?.stripe_verified ?? false} />
     </AppShell>
   )
 }

@@ -35,6 +35,8 @@ interface BatchData {
   totalJobs: number
   totalCommission: number
   monthKeys: string
+  stripe_invoice_id: string | null
+  invoice_sent_at: string | null
 }
 
 interface InvoiceBatch {
@@ -48,7 +50,7 @@ interface InvoiceBatch {
 
 const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
 
-export default function CommissionPageClient() {
+export default function CommissionPageClient({ stripeVerified = false }: { stripeVerified?: boolean }) {
   const router = useRouter()
   const [tab, setTab] = useState<'months' | 'batches'>('months')
   const [months, setMonths] = useState<MonthData[]>([])
@@ -337,7 +339,25 @@ export default function CommissionPageClient() {
                       <td className="px-4 py-3 text-center text-[#111827] dark:text-[#F1F5F9]">{batch.totalJobs}</td>
                       <td className="px-4 py-3 text-right font-semibold text-[#16A34A]">{fmt(batch.totalCommission)}</td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex gap-2 justify-end flex-wrap">
+                          {batch.stripe_invoice_id ? (
+                            <span className="px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400">
+                              Sent {batch.invoice_sent_at ? new Date(batch.invoice_sent_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                            </span>
+                          ) : (
+                            <div className="relative group">
+                              <Button size="sm" variant="secondary" disabled>
+                                Send Invoice
+                              </Button>
+                              <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block z-10 w-56">
+                                <div className="bg-[#111827] dark:bg-[#F1F5F9] text-white dark:text-[#111827] text-xs rounded-lg px-3 py-2 text-center shadow-lg">
+                                  {stripeVerified
+                                    ? 'Invoice sending coming soon'
+                                    : 'Connect Stripe in Settings to enable invoicing'}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           <Button size="sm" variant="secondary" onClick={() => openInvoiceFromBatch(batch.id)}>
                             View Invoice
                           </Button>

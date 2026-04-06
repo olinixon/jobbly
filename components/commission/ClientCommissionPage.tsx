@@ -29,6 +29,7 @@ interface Props {
   initialDateRange: string
   initialFrom: string
   initialTo: string
+  stripeVerified?: boolean
 }
 
 const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
@@ -81,6 +82,7 @@ export default function ClientCommissionPage({
   initialDateRange,
   initialFrom,
   initialTo,
+  stripeVerified = false,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -177,12 +179,29 @@ export default function ClientCommissionPage({
                     <span className="text-[#9CA3AF]">incl. GST: {fmt(month.totalGrossMarkup * 1.15)}</span>
                   </div>
                 </button>
-                <button
-                  onClick={() => setInvoiceMonth(month)}
-                  className="px-3 py-1.5 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors"
-                >
-                  Generate Invoice
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="relative group">
+                    <button
+                      disabled
+                      className="px-3 py-1.5 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#9CA3AF] dark:text-[#4B5563] cursor-not-allowed"
+                    >
+                      Send Invoice
+                    </button>
+                    <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block z-10 w-56">
+                      <div className="bg-[#111827] dark:bg-[#F1F5F9] text-white dark:text-[#111827] text-xs rounded-lg px-3 py-2 text-center shadow-lg">
+                        {stripeVerified
+                          ? 'Invoice sending coming soon'
+                          : 'Connect Stripe in Settings to enable invoicing'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setInvoiceMonth(month)}
+                    className="px-3 py-1.5 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors"
+                  >
+                    Generate Invoice
+                  </button>
+                </div>
               </div>
 
               {expanded.has(month.monthKey) && (
