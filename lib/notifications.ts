@@ -471,6 +471,78 @@ export async function sendBookingRescheduleConfirmationCustomer(params: BookingR
   })
 }
 
+// ─── Invoice Reminder (admin) ─────────────────────────────────────────────────
+
+interface AdminInvoiceReminderParams {
+  to: string
+  name: string | null
+  campaignName: string
+  unreconciledCount: number
+}
+
+export async function sendAdminInvoiceReminder(params: AdminInvoiceReminderParams) {
+  const appUrl = APP_URL()
+  const greeting = extractFirstName(params.name)
+
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <p style="margin:0 0 6px;font-size:18px;font-weight:600;color:#18181b;">${greeting}</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">This is your scheduled invoice reminder for <strong>${params.campaignName}</strong>.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Unreconciled jobs', String(params.unreconciledCount))}
+        </table>
+      `)}
+      <p style="margin:0 0 20px;font-size:14px;color:#71717a;">Head to Jobbly to reconcile your jobs and send your invoice.</p>
+      ${primaryButton(`${appUrl}/commission`, 'Go to Commission')}
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: `Invoice reminder — ${params.campaignName}`,
+    html,
+  })
+}
+
+// ─── Invoice Reminder (client) ────────────────────────────────────────────────
+
+interface ClientInvoiceReminderParams {
+  to: string
+  name: string | null
+  campaignName: string
+  unsentBatchCount: number
+}
+
+export async function sendClientInvoiceReminder(params: ClientInvoiceReminderParams) {
+  const appUrl = APP_URL()
+  const greeting = extractFirstName(params.name)
+
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <p style="margin:0 0 6px;font-size:18px;font-weight:600;color:#18181b;">${greeting}</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">This is your scheduled invoice reminder for <strong>${params.campaignName}</strong>.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Unsent batch invoices', String(params.unsentBatchCount))}
+        </table>
+      `)}
+      <p style="margin:0 0 20px;font-size:14px;color:#71717a;">Head to Jobbly to send your outstanding invoices to the subcontractor.</p>
+      ${primaryButton(`${appUrl}/commission`, 'Go to Financials')}
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: `Invoice reminder — ${params.campaignName}`,
+    html,
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function sendBookingRescheduleEmail(params: BookingRescheduleParams) {
   const appUrl = APP_URL()
 
