@@ -321,7 +321,7 @@ export default function LeadActions({
       const d = await res.json()
       setParsedOptionsCount(typeof d.parsedOptionsCount === 'number' ? d.parsedOptionsCount : null)
       setQuoteUploadStep('success')
-      setTimeout(() => { closeReplaceQuoteModal(); router.refresh() }, 2000)
+      setTimeout(() => { closeReplaceQuoteModal(); router.refresh() }, 4000)
     }
   }
 

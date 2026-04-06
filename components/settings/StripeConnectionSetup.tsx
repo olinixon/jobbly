@@ -201,7 +201,7 @@ export default function StripeConnectionSetup({ role, senderCompanyName, recipie
                 {idx === 1 && (
                   <div className="space-y-2 text-sm text-[#374151] dark:text-[#CBD5E1]">
                     <p>In your Stripe dashboard, go to <strong>Settings → Billing → Invoice settings</strong>.</p>
-                    <p>Set your default payment terms (e.g. "Due in 14 days").</p>
+                    <p>Set your default payment terms (e.g. "Due in 30 days").</p>
                     <p>Add your business details: company name, address, email, logo (optional).</p>
                     <button onClick={() => markComplete(idx)} className="mt-2 text-xs font-medium text-[#2563EB] dark:text-[#3B82F6] hover:underline">Mark complete →</button>
                   </div>
