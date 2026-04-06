@@ -13,7 +13,10 @@ export async function POST(request: NextRequest) {
   const userRole = session.user.role
   const campaignId = session.user.campaignId
   if (!campaignId) {
-    return NextResponse.json({ error: 'No campaign assigned.' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'No campaign selected. Please select a campaign before connecting Stripe.' },
+      { status: 400 }
+    )
   }
 
   const body = await request.json()

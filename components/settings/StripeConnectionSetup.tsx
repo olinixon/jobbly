@@ -208,7 +208,7 @@ export default function StripeConnectionSetup({ role, senderCompanyName, recipie
                 )}
                 {idx === 2 && (
                   <div className="space-y-2 text-sm text-[#374151] dark:text-[#CBD5E1]">
-                    <p>In Stripe, go to <strong>Settings → Tax rates → New tax rate</strong>.</p>
+                    <p>In Stripe, go to <strong>Settings → Business tax details</strong>.</p>
                     <p>Display name: <strong>GST</strong>, Percentage: <strong>15</strong>, Inclusive: <strong>No</strong>.</p>
                     <p>Save and copy the <strong>Tax Rate ID</strong> (starts with <code className="bg-[#F3F4F6] dark:bg-[#0F172A] px-1 rounded">txr_...</code>).</p>
                     <button onClick={() => markComplete(idx)} className="mt-2 text-xs font-medium text-[#2563EB] dark:text-[#3B82F6] hover:underline">Mark complete →</button>
