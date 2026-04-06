@@ -48,6 +48,22 @@ interface InvoiceBatch {
   totalCommission: number
 }
 
+interface InvoicePreviewData {
+  batch_id: string
+  period_label: string
+  recipient: {
+    company_name: string
+    billing_email: string
+    billing_address: string | null
+  }
+  line_items: Array<{ quote_number: string; customer_name: string; amount_ex_gst: number }>
+  subtotal_ex_gst: number
+  gst_amount: number
+  total_incl_gst: number
+  already_sent: boolean
+  invoice_sent_at: string | null
+}
+
 const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
 
 export default function CommissionPageClient({ stripeVerified = false }: { stripeVerified?: boolean }) {
@@ -66,6 +82,11 @@ export default function CommissionPageClient({ stripeVerified = false }: { strip
   const [reconcileError, setReconcileError] = useState('')
   const [unreconciling, setUnreconciling] = useState(false)
   const [unreconcileError, setUnreconcileError] = useState('')
+  const [previewData, setPreviewData] = useState<InvoicePreviewData | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+  const [sendingInvoice, setSendingInvoice] = useState(false)
+  const [sendResult, setSendResult] = useState<{ stripe_invoice_id: string; stripe_invoice_url: string | null } | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -119,15 +140,23 @@ export default function CommissionPageClient({ stripeVerified = false }: { strip
   }
 
   async function openInvoiceFromBatch(batchId: string) {
-    const res = await fetch(`/api/commission/invoice/${batchId}`)
-    if (res.ok) {
-      const data = await res.json()
-      setInvoiceData({
-        ...data,
-        totalCommission: data.totalCommission,
-      })
+    setPreviewData(null)
+    setSendResult(null)
+    setSendError(null)
+    const [batchRes, previewRes] = await Promise.all([
+      fetch(`/api/commission/invoice/${batchId}`),
+      fetch(`/api/invoices/preview/${batchId}`),
+    ])
+    if (batchRes.ok) {
+      const data = await batchRes.json()
+      setInvoiceData({ ...data, totalCommission: data.totalCommission })
       setShowInvoiceModal(true)
     }
+    if (previewRes.ok) {
+      const pd = await previewRes.json()
+      setPreviewData(pd)
+    }
+    // preview fetch failures (403 = Stripe not set up) are silent — Stripe button just won't show
   }
 
   function exportPdfFromMonth(month: MonthData) {
@@ -192,6 +221,37 @@ export default function CommissionPageClient({ stripeVerified = false }: { strip
     setShowUnreconcileModal(null)
     router.refresh()
     loadData()
+  }
+
+  async function handleSendInvoice() {
+    if (!previewData) return
+    setSendingInvoice(true)
+    setSendError(null)
+    try {
+      const res = await fetch('/api/invoices/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batch_id: previewData.batch_id, flow: 'admin_to_client' }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSendError(data.error ?? 'Invoice sending failed. Please try again.')
+        return
+      }
+      setSendResult({ stripe_invoice_id: data.stripe_invoice_id, stripe_invoice_url: data.stripe_invoice_url })
+      loadData() // refresh batch list so "Sent [date]" label appears
+    } catch {
+      setSendError('An unexpected error occurred. Please try again.')
+    } finally {
+      setSendingInvoice(false)
+    }
+  }
+
+  function closeInvoiceModal() {
+    setShowInvoiceModal(false)
+    setPreviewData(null)
+    setSendResult(null)
+    setSendError(null)
   }
 
   if (loading) {
@@ -344,6 +404,10 @@ export default function CommissionPageClient({ stripeVerified = false }: { strip
                             <span className="px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400">
                               Sent {batch.invoice_sent_at ? new Date(batch.invoice_sent_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                             </span>
+                          ) : stripeVerified ? (
+                            <Button size="sm" variant="secondary" onClick={() => openInvoiceFromBatch(batch.id)} disabled={loadingPreview}>
+                              {loadingPreview ? '…' : 'Send Invoice'}
+                            </Button>
                           ) : (
                             <div className="relative group">
                               <Button size="sm" variant="secondary" disabled>
@@ -351,9 +415,7 @@ export default function CommissionPageClient({ stripeVerified = false }: { strip
                               </Button>
                               <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block z-10 w-56">
                                 <div className="bg-[#111827] dark:bg-[#F1F5F9] text-white dark:text-[#111827] text-xs rounded-lg px-3 py-2 text-center shadow-lg">
-                                  {stripeVerified
-                                    ? 'Invoice sending coming soon'
-                                    : 'Connect Stripe in Settings to enable invoicing'}
+                                  Connect Stripe in Settings to enable invoicing
                                 </div>
                               </div>
                             </div>
@@ -439,7 +501,7 @@ export default function CommissionPageClient({ stripeVerified = false }: { strip
       {/* Invoice preview modal */}
       {showInvoiceModal && invoiceData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 no-print" onClick={() => setShowInvoiceModal(false)} />
+          <div className="absolute inset-0 bg-black/40 no-print" onClick={closeInvoiceModal} />
           <div className="relative bg-white dark:bg-[#1E293B] rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10">
             {/* Invoice content */}
             <div id="invoice-content" className="p-8 font-mono text-sm">
@@ -460,6 +522,17 @@ export default function CommissionPageClient({ stripeVerified = false }: { strip
                 <dt className="text-[#6B7280] dark:text-[#94A3B8]">Prepared by:</dt>
                 <dd>Omniside AI</dd>
               </dl>
+
+              {previewData && (
+                <div className="mb-4 pb-4 border-b border-[#E5E7EB] dark:border-[#334155]">
+                  <p className="text-xs font-bold uppercase text-[#6B7280] dark:text-[#94A3B8] mb-1">Recipient</p>
+                  <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">{previewData.recipient.company_name}</p>
+                  <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{previewData.recipient.billing_email}</p>
+                  {previewData.recipient.billing_address && (
+                    <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{previewData.recipient.billing_address}</p>
+                  )}
+                </div>
+              )}
 
               <div className="border-t border-[#E5E7EB] dark:border-[#334155] pt-4 mb-4">
                 <div className="grid grid-cols-[auto_1fr_auto] gap-x-6 text-xs text-[#6B7280] dark:text-[#94A3B8] mb-2 font-bold uppercase">
@@ -495,18 +568,47 @@ export default function CommissionPageClient({ stripeVerified = false }: { strip
                 </div>
               </div>
 
+              {sendResult && (
+                <div className="mt-4 pt-3 border-t border-[#E5E7EB] dark:border-[#334155]">
+                  <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">
+                    Invoice number: <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">{sendResult.stripe_invoice_id}</span>
+                  </p>
+                </div>
+              )}
+
               <p className="mt-8 text-xs text-[#6B7280] dark:text-[#94A3B8]">Jobbly by Omniside AI</p>
             </div>
 
             {/* Modal buttons */}
-            <div className="flex gap-3 justify-end px-8 pb-6 no-print">
-              <Button variant="secondary" onClick={() => window.print()}>Print / Save as PDF</Button>
-              {invoiceData.id === '' && (
-                <Button onClick={() => { setShowInvoiceModal(false); setShowReconcileModal(true) }}>
-                  Mark Reconciled
-                </Button>
+            <div className="flex flex-col gap-3 px-8 pb-6 no-print">
+              {sendError && (
+                <p className="text-sm text-red-600 dark:text-red-400 text-right">{sendError}</p>
               )}
-              <Button variant="secondary" onClick={() => setShowInvoiceModal(false)}>Close</Button>
+              <div className="flex gap-3 justify-end flex-wrap">
+                <Button variant="secondary" onClick={() => window.print()}>Print / Save as PDF</Button>
+                {invoiceData.id === '' && (
+                  <Button onClick={() => { closeInvoiceModal(); setShowReconcileModal(true) }}>
+                    Mark Reconciled
+                  </Button>
+                )}
+                {sendResult ? (
+                  <>
+                    <span className="flex items-center gap-1.5 px-3 text-sm font-medium text-green-600 dark:text-green-400">
+                      ✓ Invoice sent
+                    </span>
+                    <Button variant="secondary" onClick={closeInvoiceModal}>Close</Button>
+                  </>
+                ) : previewData && !previewData.already_sent ? (
+                  <>
+                    <Button onClick={handleSendInvoice} disabled={sendingInvoice}>
+                      {sendingInvoice ? 'Sending…' : 'Confirm & Send via Stripe'}
+                    </Button>
+                    <Button variant="secondary" onClick={closeInvoiceModal}>Cancel</Button>
+                  </>
+                ) : (
+                  <Button variant="secondary" onClick={closeInvoiceModal}>Close</Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
