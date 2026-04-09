@@ -18,7 +18,10 @@ export async function getCallStats(from?: Date, to?: Date): Promise<CallStats> {
   const authClient = new googleAuth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '')
+        .replace(/\\n/g, '\n')
+        .replace(/^"|"$/g, '')
+        .trim(),
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
   })
