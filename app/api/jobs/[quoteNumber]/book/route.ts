@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: Promise<{ quoteNumber: string }> }
 ) {
   const session = await auth()
-  if (!session || session.user.role !== 'SUBCONTRACTOR') {
+  if (!session || !['ADMIN', 'CLIENT', 'SUBCONTRACTOR'].includes(session.user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

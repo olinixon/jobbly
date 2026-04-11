@@ -12,6 +12,7 @@ import { formatDateTime, formatDate } from '@/lib/formatDate'
 import DeleteLeadButton from '@/components/leads/DeleteLeadButton'
 import DuplicateWarningBanner from '@/components/leads/DuplicateWarningBanner'
 import CustomerPortalActions from '@/components/leads/CustomerPortalActions'
+import BookThisJobCard from '@/components/leads/BookThisJobCard'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -117,6 +118,11 @@ export default async function LeadDetailPage({
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 mb-6 shadow-sm">
         <LeadStatusPipeline status={lead.status} jobBookedDate={lead.jobBookedDate} />
       </div>
+
+      {/* Book This Job — admin and client at LEAD_RECEIVED */}
+      {(isAdmin || isClient) && lead.status === 'LEAD_RECEIVED' && (
+        <BookThisJobCard quoteNumber={lead.quoteNumber} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Customer & Property */}
