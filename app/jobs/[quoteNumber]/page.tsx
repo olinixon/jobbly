@@ -11,7 +11,7 @@ import { formatDateTime, formatDate } from '@/lib/formatDate'
 import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
 import AddToCalendarDropdown from '@/components/leads/AddToCalendarDropdown'
 import InternalNotesEditor from '@/components/leads/InternalNotesEditor'
-import BookThisJob from '@/components/leads/BookThisJob'
+import BookThisJobCard from '@/components/leads/BookThisJobCard'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -102,7 +102,7 @@ export default async function JobDetailPage({
       </div>
 
       {job.status === 'LEAD_RECEIVED' && (
-        <BookThisJob quoteNumber={job.quoteNumber} />
+        <BookThisJobCard quoteNumber={job.quoteNumber} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
