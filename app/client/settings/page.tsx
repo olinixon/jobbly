@@ -51,11 +51,11 @@ export default async function ClientSettingsPage() {
       <PageHeader title="Settings" />
 
       <div className="space-y-8 max-w-3xl mx-auto">
-        {/* Stripe & Invoicing */}
+        {/* Stripe — Customer Payments */}
         <section className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
-          <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-1">Stripe & Invoicing</h2>
+          <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-1">Stripe — Customer Payments</h2>
           <p className="text-xs text-[#9CA3AF] dark:text-[#475569] mb-6">
-            Connect your Stripe account to send invoices to {campaign.subcontractorCompanyName} directly from Jobbly.
+            Connect your Stripe account so customers can pay their invoices online. This is a one-time setup. Once connected, all customer payments go directly into your Stripe account.
           </p>
 
           <div className="space-y-6">
@@ -63,6 +63,7 @@ export default async function ClientSettingsPage() {
               <h3 className="text-sm font-semibold text-[#374151] dark:text-[#CBD5E1] mb-3">Stripe Connection</h3>
               <StripeConnectionSetup
                 role="CLIENT"
+                mode="payment_only"
                 senderCompanyName={campaign.clientCompanyName}
                 recipientCompanyName={campaign.subcontractorCompanyName}
                 initialProfile={profileSummary}

@@ -57,7 +57,6 @@ export default async function CommissionPage({
           initialDateRange={sp.dateRange ?? 'all-time'}
           initialFrom={sp.from ?? ''}
           initialTo={sp.to ?? ''}
-          stripeVerified={clientBillingProfile?.stripe_verified ?? false}
         />
       </AppShell>
     )

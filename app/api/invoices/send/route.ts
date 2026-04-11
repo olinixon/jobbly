@@ -68,13 +68,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Stripe not connected.' }, { status: 403 })
   }
 
+  if (!billingProfile.stripe_customer_id || !billingProfile.stripe_gst_rate_id) {
+    return NextResponse.json({ error: 'Stripe invoicing is not fully configured for this account.' }, { status: 403 })
+  }
+
+  const stripeCustomerId = billingProfile.stripe_customer_id
+  const stripeGstRateId = billingProfile.stripe_gst_rate_id
+
   // Build invoice via Stripe — entire sequence wrapped in try/catch
   try {
     const stripe = getStripeClient(billingProfile.stripe_secret_key)
 
     // Create the invoice (do not auto-advance — we control when it sends)
     const invoice = await stripe.invoices.create({
-      customer: billingProfile.stripe_customer_id,
+      customer: stripeCustomerId,
       auto_advance: false,
       collection_method: 'send_invoice',
       days_until_due: 14,
@@ -87,12 +94,12 @@ export async function POST(request: NextRequest) {
         : (lead.grossMarkup ?? 0)
 
       await stripe.invoiceItems.create({
-        customer: billingProfile.stripe_customer_id,
+        customer: stripeCustomerId,
         invoice: invoice.id,
         description: `${lead.quoteNumber} — ${lead.customerName}`,
         amount: Math.round(cutAmount * 100), // Stripe uses cents
         currency: 'nzd',
-        tax_rates: [billingProfile.stripe_gst_rate_id],
+        tax_rates: [stripeGstRateId],
       })
     }
 

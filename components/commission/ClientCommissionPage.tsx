@@ -28,24 +28,6 @@ interface ClientBatchData {
   totalJobs: number
   totalGrossMarkup: number
   monthKeys: string
-  client_stripe_invoice_id: string | null
-  client_invoice_sent_at: string | null
-}
-
-interface InvoicePreviewData {
-  batch_id: string
-  period_label: string
-  recipient: {
-    company_name: string
-    billing_email: string
-    billing_address: string | null
-  }
-  line_items: Array<{ quote_number: string; customer_name: string; amount_ex_gst: number }>
-  subtotal_ex_gst: number
-  gst_amount: number
-  total_incl_gst: number
-  already_sent: boolean
-  invoice_sent_at: string | null
 }
 
 interface Props {
@@ -56,7 +38,6 @@ interface Props {
   initialDateRange: string
   initialFrom: string
   initialTo: string
-  stripeVerified?: boolean
 }
 
 const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
@@ -109,7 +90,6 @@ export default function ClientCommissionPage({
   initialDateRange,
   initialFrom,
   initialTo,
-  stripeVerified = false,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -124,12 +104,6 @@ export default function ClientCommissionPage({
   const [loadingBatches, setLoadingBatches] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [invoiceMonth, setInvoiceMonth] = useState<MonthData | null>(null)
-  const [showStripeModal, setShowStripeModal] = useState(false)
-  const [previewData, setPreviewData] = useState<InvoicePreviewData | null>(null)
-  const [previewError, setPreviewError] = useState<string | null>(null)
-  const [sendingInvoice, setSendingInvoice] = useState(false)
-  const [sendResult, setSendResult] = useState<{ stripe_invoice_id: string; stripe_invoice_url: string | null } | null>(null)
-  const [sendError, setSendError] = useState<string | null>(null)
 
   function buildUrl(params: Record<string, string>) {
     const sp = new URLSearchParams(searchParams.toString())
@@ -165,52 +139,6 @@ export default function ClientCommissionPage({
 
   const totalMarkup = months.reduce((s, m) => s + m.totalGrossMarkup, 0)
 
-  async function openStripeModal(batchId: string) {
-    setPreviewData(null)
-    setPreviewError(null)
-    setSendResult(null)
-    setSendError(null)
-    setShowStripeModal(true)
-    const res = await fetch(`/api/invoices/preview/${batchId}`)
-    if (res.ok) {
-      setPreviewData(await res.json())
-    } else {
-      const d = await res.json().catch(() => ({}))
-      setPreviewError(d.error ?? 'Failed to load invoice preview.')
-    }
-  }
-
-  async function handleClientSendInvoice() {
-    if (!previewData) return
-    setSendingInvoice(true)
-    setSendError(null)
-    try {
-      const res = await fetch('/api/invoices/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batch_id: previewData.batch_id, flow: 'client_to_subcontractor' }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setSendError(data.error ?? 'Invoice sending failed. Please try again.')
-        return
-      }
-      setSendResult({ stripe_invoice_id: data.stripe_invoice_id, stripe_invoice_url: data.stripe_invoice_url })
-      fetchBatches()
-    } catch {
-      setSendError('An unexpected error occurred. Please try again.')
-    } finally {
-      setSendingInvoice(false)
-    }
-  }
-
-  function closeStripeModal() {
-    setShowStripeModal(false)
-    setPreviewData(null)
-    setPreviewError(null)
-    setSendResult(null)
-    setSendError(null)
-  }
 
   return (
     <>
@@ -352,7 +280,6 @@ export default function ClientCommissionPage({
                       <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Date Reconciled</th>
                       <th className="text-center px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Jobs</th>
                       <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Margin (ex GST)</th>
-                      <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -366,38 +293,6 @@ export default function ClientCommissionPage({
                         </td>
                         <td className="px-4 py-3 text-center text-[#111827] dark:text-[#F1F5F9]">{batch.totalJobs}</td>
                         <td className="px-4 py-3 text-right font-semibold text-[#16A34A]">{fmt(batch.totalGrossMarkup)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2 justify-end">
-                            {batch.client_stripe_invoice_id ? (
-                              <span className="px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400">
-                                Sent {batch.client_invoice_sent_at
-                                  ? new Date(batch.client_invoice_sent_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })
-                                  : ''}
-                              </span>
-                            ) : stripeVerified ? (
-                              <button
-                                onClick={() => openStripeModal(batch.id)}
-                                className="px-3 py-1.5 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors"
-                              >
-                                Send Invoice
-                              </button>
-                            ) : (
-                              <div className="relative group">
-                                <button
-                                  disabled
-                                  className="px-3 py-1.5 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#9CA3AF] dark:text-[#4B5563] cursor-not-allowed"
-                                >
-                                  Send Invoice
-                                </button>
-                                <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block z-10 w-56">
-                                  <div className="bg-[#111827] dark:bg-[#F1F5F9] text-white dark:text-[#111827] text-xs rounded-lg px-3 py-2 text-center shadow-lg">
-                                    Connect Stripe in Settings to enable invoicing
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -473,114 +368,6 @@ export default function ClientCommissionPage({
         </div>
       )}
 
-      {/* Stripe invoice modal */}
-      {showStripeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 no-print" onClick={closeStripeModal} />
-          <div className="relative bg-white dark:bg-[#1E293B] rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10">
-            <div className="p-8 font-mono text-sm">
-              <div className="border-b-2 border-[#111827] dark:border-[#F1F5F9] pb-4 mb-4">
-                <h1 className="text-xl font-bold text-[#111827] dark:text-[#F1F5F9] mb-1">INVOICE</h1>
-                {previewData && (
-                  <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{previewData.period_label}</p>
-                )}
-              </div>
-
-              {previewError ? (
-                <p className="text-sm text-red-600 dark:text-red-400 mb-6">{previewError}</p>
-              ) : !previewData ? (
-                <div className="text-sm text-[#6B7280] dark:text-[#94A3B8] py-4 text-center">Loading preview…</div>
-              ) : (
-                <>
-                  <div className="mb-4 pb-4 border-b border-[#E5E7EB] dark:border-[#334155]">
-                    <p className="text-xs font-bold uppercase text-[#6B7280] dark:text-[#94A3B8] mb-1">Recipient</p>
-                    <p className="text-sm font-medium text-[#111827] dark:text-[#F1F5F9]">{previewData.recipient.company_name}</p>
-                    <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{previewData.recipient.billing_email}</p>
-                    {previewData.recipient.billing_address && (
-                      <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">{previewData.recipient.billing_address}</p>
-                    )}
-                  </div>
-
-                  <div className="border-t border-[#E5E7EB] dark:border-[#334155] pt-4 mb-4">
-                    <div className="grid grid-cols-[auto_1fr_auto] gap-x-6 text-xs text-[#6B7280] dark:text-[#94A3B8] mb-2 font-bold uppercase">
-                      <span>Quote #</span>
-                      <span>Customer Name</span>
-                      <span>Margin (ex GST)</span>
-                    </div>
-                    {previewData.line_items.map(item => (
-                      <div key={item.quote_number} className="grid grid-cols-[auto_1fr_auto] gap-x-6 text-sm py-1 border-b border-[#F3F4F6] dark:border-[#1E293B]">
-                        <span className="text-[#374151] dark:text-[#CBD5E1]">{item.quote_number}</span>
-                        <span className="text-[#111827] dark:text-[#F1F5F9] truncate">{item.customer_name}</span>
-                        <span className="font-semibold text-[#16A34A]">{fmt(item.amount_ex_gst)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="border-t-2 border-[#111827] dark:border-[#F1F5F9] pt-4 space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#6B7280] dark:text-[#94A3B8]">Subtotal (ex GST):</span>
-                      <span className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(previewData.subtotal_ex_gst)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#6B7280] dark:text-[#94A3B8]">GST (15%):</span>
-                      <span className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(previewData.gst_amount)}</span>
-                    </div>
-                    <div className="flex justify-between text-base font-bold border-t border-[#E5E7EB] dark:border-[#334155] pt-2 mt-1">
-                      <span className="text-[#111827] dark:text-[#F1F5F9]">Total (incl. GST):</span>
-                      <span className="text-[#16A34A]">{fmt(previewData.total_incl_gst)}</span>
-                    </div>
-                  </div>
-
-                  {sendResult && (
-                    <div className="mt-4 pt-3 border-t border-[#E5E7EB] dark:border-[#334155]">
-                      <p className="text-xs text-[#6B7280] dark:text-[#94A3B8]">
-                        Invoice number: <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">{sendResult.stripe_invoice_id}</span>
-                      </p>
-                    </div>
-                  )}
-
-                  <p className="mt-8 text-xs text-[#6B7280] dark:text-[#94A3B8]">Jobbly by Omniside AI</p>
-                </>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-3 px-8 pb-6 no-print">
-              {sendError && (
-                <p className="text-sm text-red-600 dark:text-red-400 text-right">{sendError}</p>
-              )}
-              <div className="flex gap-3 justify-end flex-wrap">
-                {sendResult ? (
-                  <>
-                    <span className="flex items-center gap-1.5 px-3 text-sm font-medium text-green-600 dark:text-green-400">
-                      ✓ Invoice sent
-                    </span>
-                    <button onClick={closeStripeModal} className="px-4 py-2 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors">
-                      Close
-                    </button>
-                  </>
-                ) : previewData && !previewError ? (
-                  <>
-                    <button
-                      onClick={handleClientSendInvoice}
-                      disabled={sendingInvoice}
-                      className="px-4 py-2 text-sm font-medium rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {sendingInvoice ? 'Sending…' : 'Confirm & Send via Stripe'}
-                    </button>
-                    <button onClick={closeStripeModal} className="px-4 py-2 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors">
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <button onClick={closeStripeModal} className="px-4 py-2 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors">
-                    Close
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }
