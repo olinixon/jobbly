@@ -129,6 +129,7 @@ export default function DashboardFilters({
         <option value="QUOTE_SENT">Quote Sent</option>
         <option value="JOB_BOOKED">Job Booked</option>
         <option value="JOB_COMPLETED">Job Completed</option>
+        <option value="JOB_CANCELLED">Cancelled</option>
       </select>
       <select value={localRange} onChange={e => handleRangeChange(e.target.value)} className={selectCls}>
         {DATE_RANGE_OPTIONS.map(o => (

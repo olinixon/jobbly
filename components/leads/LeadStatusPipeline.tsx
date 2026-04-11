@@ -12,9 +12,26 @@ const LABELS: Record<string, string> = {
 interface LeadStatusPipelineProps {
   status: string
   jobBookedDate?: Date | null
+  cancellationReason?: string | null
 }
 
-export default function LeadStatusPipeline({ status, jobBookedDate }: LeadStatusPipelineProps) {
+export default function LeadStatusPipeline({ status, jobBookedDate, cancellationReason }: LeadStatusPipelineProps) {
+  // JOB_CANCELLED is an exit state — replace pipeline with a simple badge
+  if (status === 'JOB_CANCELLED') {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">
+            Job Cancelled
+          </span>
+        </div>
+        {cancellationReason && (
+          <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">{cancellationReason}</p>
+        )}
+      </div>
+    )
+  }
+
   // Map legacy QUOTE_SENT to the same index as LEAD_RECEIVED so it renders between step 0 and 1
   const effectiveStatus = status === 'QUOTE_SENT' ? 'LEAD_RECEIVED' : status
   const currentIdx = STEPS.indexOf(effectiveStatus)

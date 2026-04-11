@@ -5,7 +5,7 @@ import { sendJobCompletedEmail } from '@/lib/notifications'
 import { deleteFile } from '@/lib/fileStorage'
 
 const STATUS_ORDER = ['LEAD_RECEIVED', 'QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED'] as const
-type LeadStatus = typeof STATUS_ORDER[number]
+type StatusOrderEntry = typeof STATUS_ORDER[number]
 
 export async function GET(
   _request: NextRequest,
@@ -57,7 +57,7 @@ export async function PATCH(
 
   // Handle status REVERT (one step back, all roles)
   if (body.revert === true) {
-    const currentIdx = STATUS_ORDER.indexOf(lead.status)
+    const currentIdx = STATUS_ORDER.indexOf(lead.status as StatusOrderEntry)
     if (currentIdx <= 0) {
       return NextResponse.json({ error: 'Cannot revert further.' }, { status: 400 })
     }
@@ -106,8 +106,8 @@ export async function PATCH(
       )
     }
 
-    const currentIdx = STATUS_ORDER.indexOf(lead.status)
-    const newIdx = STATUS_ORDER.indexOf(body.status)
+    const currentIdx = STATUS_ORDER.indexOf(lead.status as StatusOrderEntry)
+    const newIdx = STATUS_ORDER.indexOf(body.status as StatusOrderEntry)
 
     if (newIdx <= currentIdx) {
       return NextResponse.json({ error: 'Status can only move forward' }, { status: 400 })
@@ -143,7 +143,7 @@ export async function PATCH(
           changedByUserId: session.user.id,
           changedByName: session.user.name,
           oldStatus: lead.status,
-          newStatus: body.status as LeadStatus,
+          newStatus: body.status as StatusOrderEntry,
         },
       })
       await tx.lead.update({

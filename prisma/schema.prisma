@@ -125,6 +125,7 @@ model Lead {
   duplicate_confidence        String?    // 'high' or 'medium' — null if no duplicate found
   duplicate_reason            String?    // e.g. "Same phone number and address"
   duplicate_lead_id           String?    // quote_number of the matched lead
+  cancellation_reason   String?    // Set when lead is marked as Job Cancelled
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
@@ -246,9 +247,10 @@ enum Role {
 
 enum LeadStatus {
   LEAD_RECEIVED
-  QUOTE_SENT
+  QUOTE_SENT        // retained for legacy data — not used in new flow
   JOB_BOOKED
   JOB_COMPLETED
+  JOB_CANCELLED     // exit state — lead will not proceed further
 }
 
 enum CampaignStatus {

@@ -14,6 +14,7 @@ import DuplicateWarningBanner from '@/components/leads/DuplicateWarningBanner'
 import CustomerPortalActions from '@/components/leads/CustomerPortalActions'
 import BookThisJobCard from '@/components/leads/BookThisJobCard'
 import CompleteJobSection from '@/components/leads/CompleteJobSection'
+import JobBookedActionsCard from '@/components/leads/JobBookedActionsCard'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -117,12 +118,21 @@ export default async function LeadDetailPage({
 
       {/* Status pipeline */}
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 mb-6 shadow-sm">
-        <LeadStatusPipeline status={lead.status} jobBookedDate={lead.jobBookedDate} />
+        <LeadStatusPipeline status={lead.status} jobBookedDate={lead.jobBookedDate} cancellationReason={lead.cancellation_reason} />
       </div>
 
       {/* Book This Job — admin and client at LEAD_RECEIVED */}
       {(isAdmin || isClient) && lead.status === 'LEAD_RECEIVED' && (
         <BookThisJobCard quoteNumber={lead.quoteNumber} />
+      )}
+
+      {/* Job Booked Actions — admin full (rebook/unbook/cancel), client read-only */}
+      {(isAdmin || isClient) && lead.status === 'JOB_BOOKED' && (
+        <JobBookedActionsCard
+          quoteNumber={lead.quoteNumber}
+          jobBookedDate={lead.jobBookedDate}
+          readOnly={isClient}
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

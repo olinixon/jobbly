@@ -44,7 +44,7 @@ export default async function JobsPage({
   const activeWhere = { ...baseWhere, status: { in: statusIn } }
 
   // Needs-action count (unfiltered, matches sidebar badge)
-  const needsActionBaseWhere: Record<string, unknown> = { status: { not: 'JOB_COMPLETED' } }
+  const needsActionBaseWhere: Record<string, unknown> = { status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED'] } }
   if (session.user.campaignId) needsActionBaseWhere.campaignId = session.user.campaignId
 
   let jobs: { id: string; quoteNumber: string; customerName: string; propertyAddress: string; status: string; createdAt: Date; jobBookedDate?: Date | null; urgencyLevel?: 'HIGH' | 'MEDIUM' | null }[] = []

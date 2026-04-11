@@ -12,6 +12,7 @@ import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
 import AddToCalendarDropdown from '@/components/leads/AddToCalendarDropdown'
 import InternalNotesEditor from '@/components/leads/InternalNotesEditor'
 import BookThisJobCard from '@/components/leads/BookThisJobCard'
+import JobBookedActionsCard from '@/components/leads/JobBookedActionsCard'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -98,11 +99,14 @@ export default async function JobDetailPage({
 
       {/* Status pipeline */}
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 mb-6 shadow-sm">
-        <LeadStatusPipeline status={job.status} jobBookedDate={job.jobBookedDate} />
+        <LeadStatusPipeline status={job.status} jobBookedDate={job.jobBookedDate} cancellationReason={job.cancellation_reason} />
       </div>
 
       {job.status === 'LEAD_RECEIVED' && (
         <BookThisJobCard quoteNumber={job.quoteNumber} />
+      )}
+      {job.status === 'JOB_BOOKED' && (
+        <JobBookedActionsCard quoteNumber={job.quoteNumber} jobBookedDate={job.jobBookedDate} />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

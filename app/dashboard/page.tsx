@@ -155,12 +155,12 @@ export default async function DashboardPage({
   if (!campaignId) delete financialStatsWhere.campaignId
 
   // Needs-action count for standalone button (unfiltered — matches sidebar badge)
-  const needsActionBaseWhere: Record<string, unknown> = { status: { not: 'JOB_COMPLETED' } }
+  const needsActionBaseWhere: Record<string, unknown> = { status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED'] } }
   if (campaignId) needsActionBaseWhere.campaignId = campaignId
 
   // Two-tier sort: active leads first (oldest first), completed last (oldest first)
   const [activeLeadsRaw, completedLeadsRaw, total, countStats, financialStats, needsActionLeads] = await Promise.all([
-    prisma.lead.findMany({ where: { ...where, status: { not: 'JOB_COMPLETED' } }, orderBy: { createdAt: 'asc' } }),
+    prisma.lead.findMany({ where: { ...where, status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED'] } }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.count({ where }),
     prisma.lead.findMany({

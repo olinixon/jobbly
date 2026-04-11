@@ -611,6 +611,43 @@ export async function sendMissingCustomerEmailAlert(params: MissingCustomerEmail
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface JobCancelledAlertParams {
+  quoteNumber: string
+  customerName: string
+  propertyAddress: string
+  cancelledByName: string
+  cancelledByRole: string
+  reason: string | null
+}
+
+export async function sendJobCancelledAlert(params: JobCancelledAlertParams) {
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#dc2626;">Job cancelled — ${params.quoteNumber}</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Hi Oli, a job has been marked as cancelled.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Quote number', params.quoteNumber)}
+          ${row('Customer name', params.customerName)}
+          ${row('Property address', params.propertyAddress)}
+          ${row('Cancelled by', `${params.cancelledByName} (${params.cancelledByRole})`)}
+          ${row('Reason', params.reason ?? 'No reason provided')}
+        </table>
+      `)}
+      <p style="margin:0;font-size:14px;color:#71717a;">Log in to Jobbly to view the full lead details.</p>
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: process.env.EMAIL_OLI!,
+    subject: `Job cancelled — ${params.quoteNumber} — ${params.customerName}`,
+    html,
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function sendBookingRescheduleEmail(params: BookingRescheduleParams) {
   const appUrl = APP_URL()
 
