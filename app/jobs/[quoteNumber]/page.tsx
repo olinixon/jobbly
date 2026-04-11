@@ -237,6 +237,9 @@ export default async function JobDetailPage({
             currentStatus={job.status}
             hasInvoice={!!job.invoiceUrl}
             invoiceUrl={job.invoiceUrl}
+            hasJobReport={!!job.jobReportUrl}
+            jobReportUrl={job.jobReportUrl ?? null}
+            jobReportFileName={job.jobReportUrl ? job.jobReportUrl.split('/').pop()?.split('?')[0] ?? null : null}
             markupPercentage={job.campaign.markupPercentage}
             jobTypes={jobTypes}
             customerName={job.customerName}

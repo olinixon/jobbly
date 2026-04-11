@@ -541,6 +541,74 @@ export async function sendClientInvoiceReminder(params: ClientInvoiceReminderPar
   })
 }
 
+// ─── Customer Portal Email (job complete — invoice + pay link) ────────────────
+
+interface CustomerPortalEmailParams {
+  to: string
+  customerName: string
+  propertyAddress: string
+  portalUrl: string
+  clientCompanyName: string
+}
+
+export async function sendCustomerPortalEmail(params: CustomerPortalEmailParams) {
+  const firstName = params.customerName.trim().split(' ')[0]
+
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <p style="margin:0 0 6px;font-size:18px;font-weight:600;color:#18181b;">Hi ${firstName},</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Your gutter clean at ${params.propertyAddress} is now complete.</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Your invoice and job report are ready to view, and you can pay your invoice securely online.</p>
+      <div style="margin-bottom:24px;">${primaryButton(params.portalUrl, 'View Invoice &amp; Pay')}</div>
+      <p style="margin:0 0 20px;font-size:13px;color:#a1a1aa;">If you have any questions, reply to this email or contact us directly.</p>
+      <p style="margin:0;font-size:13px;color:#71717a;">Thank you for choosing ${params.clientCompanyName}.</p>
+      <p style="margin:4px 0 0;font-size:13px;color:#71717a;">— The ${params.clientCompanyName} Team</p>
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: params.to,
+    subject: 'Your gutter clean is complete — invoice and job report ready',
+    html,
+  })
+}
+
+// ─── Missing Customer Email Alert (to Oli when customer_email is null) ────────
+
+interface MissingCustomerEmailAlertParams {
+  quoteNumber: string
+  customerName: string
+  propertyAddress: string
+  portalUrl: string
+}
+
+export async function sendMissingCustomerEmailAlert(params: MissingCustomerEmailAlertParams) {
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#dc2626;">Action needed — missing customer email</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Hi Oli, a job has just been completed but the customer's email address is missing, so the invoice notification could not be sent automatically.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Quote number', params.quoteNumber)}
+          ${row('Customer name', params.customerName)}
+          ${row('Property address', params.propertyAddress)}
+        </table>
+      `)}
+      <p style="margin:0 0 8px;font-size:14px;color:#71717a;">The customer portal link is ready — share it with the customer manually:</p>
+      <div style="margin-bottom:24px;">${primaryButton(params.portalUrl, 'View Customer Portal')}</div>
+      <p style="margin:0;font-size:13px;color:#a1a1aa;">Portal URL: ${params.portalUrl}</p>
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: process.env.EMAIL_OLI!,
+    subject: `Action needed — missing customer email for ${params.quoteNumber}`,
+    html,
+  })
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function sendBookingRescheduleEmail(params: BookingRescheduleParams) {

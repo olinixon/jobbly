@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
 import DeleteLeadButton from '@/components/leads/DeleteLeadButton'
 import DuplicateWarningBanner from '@/components/leads/DuplicateWarningBanner'
+import CustomerPortalActions from '@/components/leads/CustomerPortalActions'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -40,7 +41,7 @@ export default async function LeadDetailPage({
     include: {
       auditLogs: { orderBy: { createdAt: 'asc' } },
       attachments: { orderBy: { createdAt: 'desc' }, take: 1 },
-      campaign: { select: { markupPercentage: true } },
+      campaign: { select: { markupPercentage: true, clientCompanyName: true } },
       booking: { include: { slot: true } },
       jobType: { select: { name: true } },
     },
@@ -402,6 +403,27 @@ export default async function LeadDetailPage({
               </p>
             )}
           </div>
+
+          {/* Customer Portal — admin only, shown once portal token is set */}
+          {isAdmin && lead.customerPortalToken && (() => {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+            const portalUrl = `${appUrl}/portal/${lead.customerPortalToken}`
+            return (
+              <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+                <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Customer Portal</h2>
+                {lead.customerEmailSentAt && (
+                  <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] mb-3">
+                    Email sent {formatDateTime(lead.customerEmailSentAt)}
+                  </p>
+                )}
+                <CustomerPortalActions
+                  portalUrl={portalUrl}
+                  quoteNumber={lead.quoteNumber}
+                  customerEmail={lead.customerEmail ?? null}
+                />
+              </div>
+            )
+          })()}
 
           {/* Audit log — admin sees inline with names; client sees collapsible with "Jobbly" */}
           {isAdmin && (

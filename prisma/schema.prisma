@@ -111,9 +111,10 @@ model Lead {
   jobReportUrl          String?
   jobReportUploadedAt   DateTime?
   jobReportUploadedBy   String?
-  customerPortalToken   String?   @unique
-  customerEmailSentAt   DateTime?
-  stripeCheckoutUrl     String?
+  customerPortalToken      String?   @unique
+  customerEmailSentAt      DateTime?
+  stripeCheckoutUrl        String?
+  invoiceTotalGstInclusive Float?    // GST-inclusive total extracted by AI at Submit Job — used as Stripe charge amount
   reconciliationBatchId String?
   notes                 String?
   internal_notes        String?
