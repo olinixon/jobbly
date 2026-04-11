@@ -9,7 +9,7 @@ const MAX_SIZE = 10 * 1024 * 1024 // 10MB
 export async function POST(request: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'SUBCONTRACTOR') {
+  if (!['ADMIN', 'SUBCONTRACTOR'].includes(session.user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

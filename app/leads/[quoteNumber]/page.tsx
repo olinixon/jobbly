@@ -13,6 +13,7 @@ import DeleteLeadButton from '@/components/leads/DeleteLeadButton'
 import DuplicateWarningBanner from '@/components/leads/DuplicateWarningBanner'
 import CustomerPortalActions from '@/components/leads/CustomerPortalActions'
 import BookThisJobCard from '@/components/leads/BookThisJobCard'
+import CompleteJobSection from '@/components/leads/CompleteJobSection'
 
 interface QuoteOptionRow {
   sort_order: number
@@ -309,7 +310,7 @@ export default async function LeadDetailPage({
         {/* Right: Financials + Invoice + Audit + Actions */}
         <div className="space-y-6">
           {/* Actions */}
-          {isAdmin && (
+          {isAdmin && lead.status !== 'JOB_BOOKED' && (
             <LeadActions
               quoteNumber={lead.quoteNumber}
               currentStatus={lead.status}
@@ -317,6 +318,22 @@ export default async function LeadDetailPage({
               markupPercentage={lead.campaign.markupPercentage}
               customerName={lead.customerName}
               propertyAddress={lead.propertyAddress}
+            />
+          )}
+
+          {/* Complete Job section — admin full access, client read-only */}
+          {(isAdmin || isClient) && lead.status === 'JOB_BOOKED' && (
+            <CompleteJobSection
+              quoteNumber={lead.quoteNumber}
+              initialHasInvoice={!!lead.invoiceUrl}
+              initialInvoiceUrl={lead.invoiceUrl ?? null}
+              initialInvoiceFileName={lead.invoiceUrl ? lead.invoiceUrl.split('/').pop()?.split('?')[0] ?? null : null}
+              initialHasJobReport={!!lead.jobReportUrl}
+              initialJobReportUrl={lead.jobReportUrl ?? null}
+              initialJobReportFileName={lead.jobReportUrl ? lead.jobReportUrl.split('/').pop()?.split('?')[0] ?? null : null}
+              markupPercentage={lead.campaign.markupPercentage}
+              readOnly={isClient}
+              customerEmail={lead.customerEmail ?? null}
             />
           )}
 
