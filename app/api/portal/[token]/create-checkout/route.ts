@@ -38,19 +38,34 @@ export async function POST(
   }
 
   if (!billingProfile || !billingProfile.stripe_verified) {
+    console.error('[create-checkout] EARLY RETURN — no billing profile or not verified:', {
+      found: !!billingProfile,
+      stripe_verified: billingProfile?.stripe_verified ?? null,
+      campaign_id: lead.campaignId,
+    })
     return NextResponse.json({ checkoutUrl: null })
   }
 
-  const stripe = getStripeClient(billingProfile.stripe_secret_key)
+  let stripe: ReturnType<typeof getStripeClient>
+  try {
+    stripe = getStripeClient(billingProfile.stripe_secret_key)
+  } catch (err) {
+    console.error('[create-checkout] getStripeClient/decrypt FAILED:', err)
+    return NextResponse.json({ checkoutUrl: null })
+  }
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  console.error('[create-checkout] appUrl:', appUrl)
 
   // Determine amount in cents (GST-inclusive — confirmed by Oli)
   // Use AI-extracted total if available; fall back to customerPrice * 1.15
   const rawAmount = lead.invoiceTotalGstInclusive ?? (lead.customerPrice != null ? lead.customerPrice * 1.15 : null)
   if (!rawAmount || rawAmount <= 0) {
+    console.error('[create-checkout] EARLY RETURN — no valid amount:', { invoiceTotalGstInclusive: lead.invoiceTotalGstInclusive, customerPrice: lead.customerPrice, rawAmount })
     return NextResponse.json({ checkoutUrl: null })
   }
   const unitAmount = Math.round(rawAmount * 100)
+  console.error('[create-checkout] unitAmount (cents):', unitAmount)
 
   // If a checkout URL exists, try to verify it is still valid
   if (lead.stripeCheckoutUrl) {
@@ -64,33 +79,39 @@ export async function POST(
           return NextResponse.json({ checkoutUrl: lead.stripeCheckoutUrl })
         }
       }
-    } catch {
-      // Session retrieval failed — clear and create new
+    } catch (err) {
+      console.error('[create-checkout] existing session retrieval failed (will create new):', err)
     }
     await prisma.lead.update({ where: { id: lead.id }, data: { stripeCheckoutUrl: null } })
   }
 
   // Create new Stripe Checkout Session
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price_data: {
-          currency: 'nzd',
-          product_data: {
-            name: `Gutter Clean — ${lead.propertyAddress}`,
-            description: `Invoice ref: ${lead.quoteNumber}`,
+  let session: Awaited<ReturnType<typeof stripe.checkout.sessions.create>>
+  try {
+    session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'nzd',
+            product_data: {
+              name: `Gutter Clean — ${lead.propertyAddress}`,
+              description: `Invoice ref: ${lead.quoteNumber}`,
+            },
+            unit_amount: unitAmount,
           },
-          unit_amount: unitAmount,
+          quantity: 1,
         },
-        quantity: 1,
-      },
-    ],
-    mode: 'payment',
-    success_url: `${appUrl}/portal/${token}?paid=true`,
-    cancel_url: `${appUrl}/portal/${token}`,
-    customer_email: lead.customerEmail ?? undefined,
-  })
+      ],
+      mode: 'payment',
+      success_url: `${appUrl}/portal/${token}?paid=true`,
+      cancel_url: `${appUrl}/portal/${token}`,
+      customer_email: lead.customerEmail ?? undefined,
+    })
+  } catch (err) {
+    console.error('[create-checkout] stripe.checkout.sessions.create FAILED:', err)
+    return NextResponse.json({ checkoutUrl: null })
+  }
 
   const checkoutUrl = session.url!
   await prisma.lead.update({
