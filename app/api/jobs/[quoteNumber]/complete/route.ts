@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { analyzeInvoice } from '@/lib/analyzeInvoice'
-import { sendCustomerPortalEmail, sendMissingCustomerEmailAlert } from '@/lib/notifications'
+import { buildCustomerNotificationEmail } from '@/lib/buildCustomerNotificationEmail'
+import { sendMissingCustomerEmailAlert } from '@/lib/notifications'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(
   request: NextRequest,
@@ -88,20 +92,28 @@ export async function POST(
   })
 
   // ── Step 5: Send customer email (fire-and-forget) ─────────────────────────
-  const clientCompanyName = lead.campaign.clientCompanyName ?? 'Continuous Group'
   ;(async () => {
     if (lead.customerEmail) {
       try {
-        await sendCustomerPortalEmail({
+        const { subject, html, attachments, attachmentNotes } = await buildCustomerNotificationEmail(
+          lead,
+          lead.campaign,
+          portalUrl
+        )
+        await resend.emails.send({
+          from: process.env.EMAIL_FROM!,
           to: lead.customerEmail,
-          customerName: lead.customerName,
-          propertyAddress: lead.propertyAddress,
-          portalUrl,
-          clientCompanyName,
+          subject,
+          html,
+          attachments,
         })
+        const finalNotes = (lead.notes ?? '') + notesAppendage + attachmentNotes
         await prisma.lead.update({
           where: { id: lead.id },
-          data: { customerEmailSentAt: new Date() },
+          data: {
+            customerEmailSentAt: new Date(),
+            ...(attachmentNotes ? { notes: finalNotes } : {}),
+          },
         })
       } catch (err) {
         console.error('Customer portal email failed:', err)

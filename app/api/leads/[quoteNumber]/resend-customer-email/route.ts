@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { sendCustomerPortalEmail } from '@/lib/notifications'
+import { buildCustomerNotificationEmail } from '@/lib/buildCustomerNotificationEmail'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(
   _request: NextRequest,
@@ -32,19 +35,27 @@ export async function POST(
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const portalUrl = `${appUrl}/portal/${lead.customerPortalToken}`
-  const clientCompanyName = lead.campaign.clientCompanyName ?? 'Continuous Group'
 
-  await sendCustomerPortalEmail({
+  const { subject, html, attachments, attachmentNotes } = await buildCustomerNotificationEmail(
+    lead,
+    lead.campaign,
+    portalUrl
+  )
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
     to: lead.customerEmail,
-    customerName: lead.customerName,
-    propertyAddress: lead.propertyAddress,
-    portalUrl,
-    clientCompanyName,
+    subject,
+    html,
+    attachments,
   })
 
   await prisma.lead.update({
     where: { id: lead.id },
-    data: { customerEmailSentAt: new Date() },
+    data: {
+      customerEmailSentAt: new Date(),
+      ...(attachmentNotes ? { notes: (lead.notes ?? '') + attachmentNotes } : {}),
+    },
   })
 
   return NextResponse.json({ success: true })
