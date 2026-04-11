@@ -51,10 +51,8 @@ export default function LoginPage() {
 
     if (role === 'ADMIN') {
       router.push('/campaigns')
-    } else if (role === 'CLIENT') {
-      router.push('/dashboard')
     } else {
-      router.push('/jobs')
+      router.push('/dashboard')
     }
   }
 
