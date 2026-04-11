@@ -248,6 +248,7 @@ export default async function JobDetailPage({
             jobTypes={jobTypes}
             customerName={job.customerName}
             propertyAddress={job.propertyAddress}
+            customerEmail={job.customerEmail}
           />
 
           {/* Financials (subcontractor-restricted: no commission or margin) */}

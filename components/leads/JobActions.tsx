@@ -32,6 +32,7 @@ interface JobActionsProps {
   jobTypes: JobType[]
   customerName?: string
   propertyAddress?: string
+  customerEmail?: string | null
 }
 
 export default function JobActions({
@@ -46,11 +47,14 @@ export default function JobActions({
   jobTypes: _jobTypes,
   customerName: _customerName,
   propertyAddress: _propertyAddress,
+  customerEmail,
 }: JobActionsProps) {
   const router = useRouter()
   const [showRevertModal, setShowRevertModal] = useState(false)
   const [reverting, setReverting] = useState(false)
   const [revertError, setRevertError] = useState('')
+  const [resending, setResending] = useState(false)
+  const [resendStatus, setResendStatus] = useState<'idle' | 'success' | 'error'>('idle')
 
   const currentIdx = STATUS_ORDER.indexOf(currentStatus)
   const previousStatus = currentIdx > 0 ? STATUS_ORDER[currentIdx - 1] : null
@@ -69,7 +73,15 @@ export default function JobActions({
     router.refresh()
   }
 
-  // JOB_COMPLETED — read-only documents + revert
+  async function handleResend() {
+    setResending(true)
+    setResendStatus('idle')
+    const res = await fetch(`/api/leads/${quoteNumber}/resend-customer-email`, { method: 'POST' })
+    setResending(false)
+    setResendStatus(res.ok ? 'success' : 'error')
+  }
+
+  // JOB_COMPLETED — read-only documents + resend email + revert
   if (currentStatus === 'JOB_COMPLETED') {
     return (
       <>
@@ -89,6 +101,23 @@ export default function JobActions({
                 : <span className="text-[#9CA3AF]">—</span>}
             </div>
           </div>
+          {customerEmail && (
+            <div className="pt-4 border-t border-[#F3F4F6] dark:border-[#334155] flex items-center gap-3">
+              <button
+                onClick={handleResend}
+                disabled={resending}
+                className="px-4 py-2 text-sm font-medium border border-[#D1D5DB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#1E293B] disabled:opacity-60 transition-colors"
+              >
+                {resending ? 'Sending…' : 'Resend Email'}
+              </button>
+              {resendStatus === 'success' && (
+                <span className="text-sm text-green-600 dark:text-green-400">Email resent ✓</span>
+              )}
+              {resendStatus === 'error' && (
+                <span className="text-sm text-[#DC2626]">Failed to send. Try again.</span>
+              )}
+            </div>
+          )}
           {previousStatus && (
             <div className="pt-4 border-t border-[#F3F4F6] dark:border-[#334155]">
               <button
