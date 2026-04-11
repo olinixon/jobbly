@@ -191,12 +191,21 @@ export default async function CustomerPortalPage({
               Pay Invoice
             </a>
           ) : (
-            <button
-              disabled
-              className="w-full px-4 py-3 bg-[#F3F4F6] text-[#9CA3AF] font-semibold rounded-xl text-sm cursor-not-allowed"
-            >
-              Payment link not yet available
-            </button>
+            <>
+              <button
+                disabled
+                className="w-full px-4 py-3 bg-[#F3F4F6] text-[#9CA3AF] font-semibold rounded-xl text-sm cursor-not-allowed"
+              >
+                Payment link not yet available
+              </button>
+              <p className="mt-3 text-sm text-[#6B7280]">
+                Payment is being set up. Please contact{' '}
+                <a href="mailto:auckland@continuous.co.nz" className="text-[#2563EB] hover:underline">
+                  auckland@continuous.co.nz
+                </a>{' '}
+                directly or reply to the original email to arrange payment now.
+              </p>
+            </>
           )}
         </div>
       </main>

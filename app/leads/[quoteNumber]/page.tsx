@@ -77,6 +77,15 @@ export default async function LeadDetailPage({
     ? slot.date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     : null
 
+  // Fetch CLIENT BillingProfile for Stripe status indicator (admin + portal token only)
+  const clientBillingProfile = (isAdmin && lead.customerPortalToken)
+    ? await prisma.billingProfile.findUnique({
+        where: { campaign_id_role: { campaign_id: lead.campaignId, role: 'CLIENT' } },
+        select: { stripe_verified: true },
+      })
+    : null
+  const stripeConnected = clientBillingProfile?.stripe_verified === true
+
   // Fetch matched duplicate lead details if warning is active
   const matchedDuplicateLead = (lead.duplicate_confidence && !lead.duplicate_dismissed && lead.duplicate_lead_id)
     ? await prisma.lead.findUnique({
@@ -454,6 +463,19 @@ export default async function LeadDetailPage({
                   quoteNumber={lead.quoteNumber}
                   customerEmail={lead.customerEmail ?? null}
                 />
+                <div className="mt-3 flex items-center gap-2 text-sm">
+                  {stripeConnected ? (
+                    <>
+                      <span>✅</span>
+                      <span className="text-[#374151] dark:text-[#CBD5E1]">Stripe connected — payment link active</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>⚠️</span>
+                      <span className="text-[#6B7280] dark:text-[#94A3B8]">Stripe not connected — payment link unavailable</span>
+                    </>
+                  )}
+                </div>
               </div>
             )
           })()}

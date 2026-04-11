@@ -28,6 +28,15 @@ export async function POST(
     where: { campaign_id_role: { campaign_id: lead.campaignId, role: 'CLIENT' } },
   })
 
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[create-checkout] BillingProfile lookup result:', {
+      found: !!billingProfile,
+      stripe_verified: billingProfile?.stripe_verified ?? null,
+      campaign_id: lead.campaignId,
+      role: 'CLIENT',
+    })
+  }
+
   if (!billingProfile || !billingProfile.stripe_verified) {
     return NextResponse.json({ checkoutUrl: null })
   }
