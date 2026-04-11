@@ -9,8 +9,6 @@ import InternalNotesEditor from '@/components/leads/InternalNotesEditor'
 import ManualQuoteOptions from '@/components/leads/ManualQuoteOptions'
 import Link from 'next/link'
 import { formatDateTime, formatDate } from '@/lib/formatDate'
-import { generateCalendarLinks } from '@/lib/generateCalendarLinks'
-import AddToCalendarDropdown from '@/components/leads/AddToCalendarDropdown'
 import DeleteLeadButton from '@/components/leads/DeleteLeadButton'
 import DuplicateWarningBanner from '@/components/leads/DuplicateWarningBanner'
 
@@ -66,45 +64,20 @@ export default async function LeadDetailPage({
       })
     : []
 
-  function fmt12h(t: string): string {
-    const [h, m] = t.split(':').map(Number)
-    const suffix = h >= 12 ? 'pm' : 'am'
-    const h12 = h % 12 === 0 ? 12 : h % 12
-    return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, '0')}${suffix}`
-  }
-
+  // CL16: Booked date sourced from job_booked_date; fall back to booking slot for legacy leads
   const booking = lead.booking
   const slot = booking?.slot
-  const slotDateNZ = slot
-    ? slot.date.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
-    : null
-  const slotDateFormatted = slot
+  const bookedDisplay = lead.jobBookedDate
+    ? formatDate(lead.jobBookedDate)
+    : slot
     ? slot.date.toLocaleDateString('en-NZ', { timeZone: 'Pacific/Auckland', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     : null
-  const bookedDisplay = slotDateFormatted && booking
-    ? `${slotDateFormatted} — ${fmt12h(booking.windowStart)} – ${fmt12h(booking.windowEnd)}`
-    : lead.jobBookedDate ? `${formatDate(lead.jobBookedDate)} — —` : null
 
   // Fetch matched duplicate lead details if warning is active
   const matchedDuplicateLead = (lead.duplicate_confidence && !lead.duplicate_dismissed && lead.duplicate_lead_id)
     ? await prisma.lead.findUnique({
         where: { quoteNumber: lead.duplicate_lead_id },
         select: { customerName: true },
-      })
-    : null
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const calendarLinks = (booking && slot && lead.bookingToken && slotDateNZ)
-    ? generateCalendarLinks({
-        bookingToken: lead.bookingToken,
-        bookingId: booking.id,
-        windowStartNZ: booking.windowStart,
-        windowEndNZ: booking.windowEnd,
-        slotDateNZ,
-        propertyAddress: lead.propertyAddress,
-        quoteNumber: lead.quoteNumber,
-        jobTypeName: lead.jobType?.name ?? 'Gutter Clean',
-        appUrl,
       })
     : null
 
@@ -217,18 +190,11 @@ export default async function LeadDetailPage({
                   {formatDateTime(lead.createdAt)}
                 </dd>
               </div>
-              {(lead.status === 'JOB_BOOKED' || lead.status === 'JOB_COMPLETED') && bookedDisplay && (
-                <>
-                  <div className="flex justify-between items-start gap-4">
-                    <dt className="text-[#6B7280] dark:text-[#94A3B8] shrink-0">Booked</dt>
-                    <dd className="font-medium text-[#111827] dark:text-[#F1F5F9] text-right">{bookedDisplay}</dd>
-                  </div>
-                  {calendarLinks && (
-                    <div className="flex justify-end">
-                      <AddToCalendarDropdown links={calendarLinks} />
-                    </div>
-                  )}
-                </>
+              {(lead.status === 'JOB_BOOKED' || lead.status === 'JOB_COMPLETED') && (
+                <div className="flex justify-between items-start gap-4">
+                  <dt className="text-[#6B7280] dark:text-[#94A3B8] shrink-0">Booked Job Date</dt>
+                  <dd className="font-medium text-[#111827] dark:text-[#F1F5F9] text-right">{bookedDisplay ?? '—'}</dd>
+                </div>
               )}
             </dl>
           </div>
@@ -454,9 +420,9 @@ export default async function LeadDetailPage({
                       <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">{log.changedByName}</span>
                       {' moved to '}
                       <Badge status={log.newStatus} />
-                      {log.newStatus === 'JOB_BOOKED' && lead.jobBookedDate && (
+                      {log.newStatus === 'JOB_BOOKED' && bookedDisplay && (
                         <span className="ml-1 text-[#6B7280] dark:text-[#94A3B8]">
-                          — Booked: {formatDate(lead.jobBookedDate)}
+                          — Booked: {bookedDisplay}
                         </span>
                       )}
                     </li>

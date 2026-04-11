@@ -28,18 +28,17 @@ export async function GET() {
     const booking = lead.booking
     const slot = booking?.slot
 
-    let slotDateNZ: string | null = null
-    let windowStart: string | null = null
-    let windowEnd: string | null = null
+    // Use job_booked_date as primary; fall back to booking slot date for legacy leads
+    const bookedDateStr = lead.jobBookedDate
+      ? lead.jobBookedDate.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+      : slot
+      ? slot.date.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
+      : null
+
     let daysUntil: string | null = null
-
-    if (slot) {
-      slotDateNZ = slot.date.toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' })
-      windowStart = booking!.windowStart
-      windowEnd = booking!.windowEnd
-
-      const slotDay = new Date(slotDateNZ)
-      const diff = Math.round((slotDay.getTime() - nzToday.getTime()) / (1000 * 60 * 60 * 24))
+    if (bookedDateStr) {
+      const bookedDay = new Date(bookedDateStr)
+      const diff = Math.round((bookedDay.getTime() - nzToday.getTime()) / (1000 * 60 * 60 * 24))
       if (diff === 0) daysUntil = 'Today'
       else if (diff === 1) daysUntil = 'Tomorrow'
       else if (diff > 1) daysUntil = `${diff} days`
@@ -51,19 +50,16 @@ export async function GET() {
       quoteNumber: lead.quoteNumber,
       customerName: lead.customerName,
       propertyAddress: lead.propertyAddress,
-      jobBookedDate: lead.jobBookedDate,
-      slotDateNZ,
-      windowStart,
-      windowEnd,
+      bookedDateStr,
       daysUntil,
     }
   })
 
-  // Sort by slot date ascending (null slot dates go last)
+  // Sort by bookedDateStr ascending (nulls last)
   result.sort((a, b) => {
-    if (!a.slotDateNZ) return 1
-    if (!b.slotDateNZ) return -1
-    return a.slotDateNZ.localeCompare(b.slotDateNZ)
+    if (!a.bookedDateStr) return 1
+    if (!b.bookedDateStr) return -1
+    return a.bookedDateStr.localeCompare(b.bookedDateStr)
   })
 
   return NextResponse.json(result)

@@ -2,14 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
-function fmt12h(t: string): string {
-  const [h, m] = t.split(':').map(Number)
-  const suffix = h >= 12 ? 'pm' : 'am'
-  const h12 = h % 12 === 0 ? 12 : h % 12
-  return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, '0')}${suffix}`
-}
-
-function formatSlotDate(dateStr: string): string {
+function formatBookedDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-NZ', {
     timeZone: 'Pacific/Auckland',
     weekday: 'short',
@@ -24,12 +17,8 @@ interface JobBooked {
   quoteNumber: string
   customerName: string
   propertyAddress: string
-  jobBookedDate: string | null
-  slotDateNZ: string | null
-  windowStart: string | null
-  windowEnd: string | null
+  bookedDateStr: string | null
   daysUntil: string | null
-  bookedAgo: string | null
 }
 
 export default function JobsBookedTable({ jobs }: { jobs: JobBooked[] }) {
@@ -39,7 +28,7 @@ export default function JobsBookedTable({ jobs }: { jobs: JobBooked[] }) {
     return (
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-12 text-center shadow-sm">
         <p className="text-[#6B7280] dark:text-[#94A3B8] text-sm">
-          No jobs are currently booked. Jobs will appear here once customers confirm a booking.
+          No jobs are currently booked. Use the Job Booked action on a job to log a booked date.
         </p>
       </div>
     )
@@ -54,10 +43,8 @@ export default function JobsBookedTable({ jobs }: { jobs: JobBooked[] }) {
             <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8]">Quote #</th>
             <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8]">Customer</th>
             <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8] hidden md:table-cell">Address</th>
-            <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8]">Booked date</th>
-            <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8] hidden sm:table-cell">Time</th>
-            <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8]">Days until</th>
-            <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8] hidden sm:table-cell">Booked</th>
+            <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8]">Booked Date</th>
+            <th className="text-left px-4 py-3 font-medium text-[#6B7280] dark:text-[#94A3B8]">Days Until</th>
           </tr>
         </thead>
         <tbody>
@@ -78,15 +65,9 @@ export default function JobsBookedTable({ jobs }: { jobs: JobBooked[] }) {
                 {job.propertyAddress}
               </td>
               <td className="px-4 py-3 text-[#111827] dark:text-[#F1F5F9]">
-                {job.slotDateNZ ? formatSlotDate(job.slotDateNZ) : '—'}
-              </td>
-              <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] hidden sm:table-cell">
-                {job.windowStart && job.windowEnd
-                  ? `${fmt12h(job.windowStart)} – ${fmt12h(job.windowEnd)}`
-                  : '—'}
+                {job.bookedDateStr ? formatBookedDate(job.bookedDateStr) : '—'}
               </td>
               <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8]">{job.daysUntil ?? '—'}</td>
-              <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] hidden sm:table-cell">{job.bookedAgo ?? '—'}</td>
             </tr>
           ))}
         </tbody>

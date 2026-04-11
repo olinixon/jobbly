@@ -1,9 +1,10 @@
 import { formatDate } from '@/lib/formatDate'
 
-const STEPS = ['LEAD_RECEIVED', 'QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED']
+// CL16: QUOTE_SENT removed from display steps. Legacy leads at QUOTE_SENT are treated
+// as "in progress" between Lead Received and Job Booked.
+const STEPS = ['LEAD_RECEIVED', 'JOB_BOOKED', 'JOB_COMPLETED']
 const LABELS: Record<string, string> = {
   LEAD_RECEIVED: 'Lead Received',
-  QUOTE_SENT: 'Quote Sent',
   JOB_BOOKED: 'Job Booked',
   JOB_COMPLETED: 'Job Completed',
 }
@@ -14,7 +15,9 @@ interface LeadStatusPipelineProps {
 }
 
 export default function LeadStatusPipeline({ status, jobBookedDate }: LeadStatusPipelineProps) {
-  const currentIdx = STEPS.indexOf(status)
+  // Map legacy QUOTE_SENT to the same index as LEAD_RECEIVED so it renders between step 0 and 1
+  const effectiveStatus = status === 'QUOTE_SENT' ? 'LEAD_RECEIVED' : status
+  const currentIdx = STEPS.indexOf(effectiveStatus)
 
   const bookedDateStr = jobBookedDate ? formatDate(jobBookedDate) : null
 

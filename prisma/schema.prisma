@@ -108,6 +108,12 @@ model Lead {
   jobTypeId             String?
   jobBookedDate         DateTime?
   jobCompletedAt        DateTime?
+  jobReportUrl          String?
+  jobReportUploadedAt   DateTime?
+  jobReportUploadedBy   String?
+  customerPortalToken   String?   @unique
+  customerEmailSentAt   DateTime?
+  stripeCheckoutUrl     String?
   reconciliationBatchId String?
   notes                 String?
   internal_notes        String?
@@ -252,6 +258,7 @@ enum CampaignStatus {
 
 enum AttachmentType {
   INVOICE
+  JOB_REPORT
 }
 
 enum BookingStatus {

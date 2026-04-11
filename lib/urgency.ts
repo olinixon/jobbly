@@ -10,19 +10,12 @@ export function computeUrgency(lead: {
 }): UrgencyLevel {
   const now = Date.now()
 
+  // CL16: A lead needs action only when it is in LEAD_RECEIVED status.
+  // The green dot disappears when the lead moves to JOB_BOOKED.
   if (lead.status === 'LEAD_RECEIVED') {
     const ageDays = (now - new Date(lead.createdAt).getTime()) / DAY_MS
     if (ageDays >= 3) return 'HIGH'
     if (ageDays >= 1) return 'MEDIUM'
-    return null
-  }
-
-  if (lead.status === 'JOB_BOOKED' && lead.jobBookedDate) {
-    // Invoice uploaded — no action required
-    if (lead.invoiceUrl != null) return null
-    const daysSince = (now - new Date(lead.jobBookedDate).getTime()) / DAY_MS
-    if (daysSince >= 21) return 'HIGH'
-    if (daysSince >= 10) return 'MEDIUM'
     return null
   }
 

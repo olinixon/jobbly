@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { saveFile } from '@/lib/fileStorage'
-import { sendQuoteEmail, sendMissingEmailAlert } from '@/lib/notifications'
+// Removed CL16 — booking link emails no longer used
+// import { sendQuoteEmail, sendMissingEmailAlert } from '@/lib/notifications'
 import { parseQuotePdf } from '@/lib/parseQuotePdf'
 import { validateQuotePdf } from '@/lib/validateQuotePdf'
-import { randomUUID } from 'crypto'
+// Removed CL16 — booking token generation no longer used
+// import { randomUUID } from 'crypto'
 
 const MAX_SIZE = 10 * 1024 * 1024
 
@@ -101,8 +103,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, quoteUrl, replaced: true })
   }
 
-  // Initial upload: change status, create audit log, send email
-  const bookingToken = randomUUID()
+  // Initial upload: update quote fields only — status advance and email removed CL16
+  // Removed CL16 — booking token generation no longer used
+  // const bookingToken = randomUUID()
 
   await prisma.$transaction([
     prisma.lead.update({
@@ -113,55 +116,33 @@ export async function POST(request: NextRequest) {
         quoteUploadedBy: session.user.name ?? session.user.id,
         quoteOptions: parsedOptions.length > 0 ? (parsedOptions as object[]) : undefined,
         ...(skipValidation ? { quoteValidationOverridden: true } : {}),
-        status: 'QUOTE_SENT',
-        bookingToken,
+        // Removed CL16 — no longer advancing to QUOTE_SENT on upload
+        // status: 'QUOTE_SENT',
+        // bookingToken,
       },
     }),
-    prisma.auditLog.create({
-      data: {
-        leadId: lead.id,
-        campaignId: lead.campaignId,
-        changedByUserId: session.user.id,
-        changedByName: session.user.name ?? session.user.role,
-        oldStatus: 'LEAD_RECEIVED',
-        newStatus: 'QUOTE_SENT',
-      },
-    }),
+    // Removed CL16 — no audit log for QUOTE_SENT transition
+    // prisma.auditLog.create({ ... })
   ])
 
-  // Send quote email (fire-and-forget)
-  if (lead.customerEmail) {
-    ;(async () => {
-      try {
-        await sendQuoteEmail({
-          to: lead.customerEmail!,
-          customerName: lead.customerName,
-          propertyAddress: lead.propertyAddress,
-          quoteNumber: lead.quoteNumber,
-          customerPrice: lead.customerPrice,
-          bookingToken,
-          pdfBuffer: buffer,
-          pdfFileName: fileName,
-          campaign: lead.campaign,
-          parsedOptions,
-        })
-      } catch (err) {
-        console.error('Quote email send failed:', err)
-      }
-    })()
-  } else {
-    ;(async () => {
-      try {
-        await sendMissingEmailAlert({
-          quoteNumber: lead.quoteNumber,
-          customerName: lead.customerName,
-          propertyAddress: lead.propertyAddress,
-        })
-      } catch (err) {
-        console.error('Missing email alert failed:', err)
-      }
-    })()
-  }
+  // Removed CL16 — booking link emails no longer used
+  // if (lead.customerEmail) {
+  //   ;(async () => {
+  //     try {
+  //       await sendQuoteEmail({ ... })
+  //     } catch (err) {
+  //       console.error('Quote email send failed:', err)
+  //     }
+  //   })()
+  // } else {
+  //   ;(async () => {
+  //     try {
+  //       await sendMissingEmailAlert({ ... })
+  //     } catch (err) {
+  //       console.error('Missing email alert failed:', err)
+  //     }
+  //   })()
+  // }
 
-  return NextResponse.json({ ok: true, quoteUrl, bookingToken, parsedOptionsCount: parsedOptions.length })
+  return NextResponse.json({ ok: true, quoteUrl, parsedOptionsCount: parsedOptions.length })
 }

@@ -217,7 +217,8 @@ export default async function DashboardPage({
 
   // Count stats from createdAt-filtered data
   const totalLeads = stats.length
-  const quotesSent = stats.filter((l: CountLead) => ['QUOTE_SENT', 'JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
+  // CL16: Quotes Sent = leads that reached JOB_BOOKED (booking means quote was accepted)
+  const quotesSent = stats.filter((l: CountLead) => ['JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
   const jobsBooked = stats.filter((l: CountLead) => ['JOB_BOOKED', 'JOB_COMPLETED'].includes(l.status)).length
   const jobsCompleted = stats.filter((l: CountLead) => l.status === 'JOB_COMPLETED').length
 
@@ -298,10 +299,9 @@ export default async function DashboardPage({
           </div>
         </div>
       ) : (
-        /* Subcontractor view — keep existing flat layout */
+        /* Subcontractor view — Quotes Sent removed CL16 */
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
           <StatCard label="Total Leads" value={totalLeads} />
-          <StatCard label="Quotes Sent" value={quotesSent} />
           <StatCard label="Jobs Booked" value={jobsBooked} />
           <StatCard label="Jobs Completed" value={jobsCompleted} />
           <StatCard label="Total Jobs Revenue (ex GST)" value={`$${totalJobsRevenue.toFixed(2)}`} />
