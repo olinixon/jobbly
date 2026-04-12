@@ -86,6 +86,14 @@ export default async function LeadDetailPage({
     : null
   const stripeConnected = clientBillingProfile?.stripe_verified === true
 
+  // Fetch CustomerPaymentProfile for payment platform diagnostic (admin only)
+  const customerPaymentProfile = isAdmin
+    ? await prisma.customerPaymentProfile.findUnique({
+        where: { campaign_id: lead.campaignId },
+        select: { provider: true, verified: true },
+      })
+    : null
+
   // Fetch matched duplicate lead details if warning is active
   const matchedDuplicateLead = (lead.duplicate_confidence && !lead.duplicate_dismissed && lead.duplicate_lead_id)
     ? await prisma.lead.findUnique({
@@ -463,32 +471,39 @@ export default async function LeadDetailPage({
                   quoteNumber={lead.quoteNumber}
                   customerEmail={lead.customerEmail ?? null}
                 />
-                <div className="mt-3 flex items-center gap-2 text-sm">
-                  {stripeConnected ? (
-                    <>
-                      <span>✅</span>
-                      <span className="text-[#374151] dark:text-[#CBD5E1]">Stripe connected — payment link active</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>⚠️</span>
-                      <span className="text-[#6B7280] dark:text-[#94A3B8]">Stripe not connected — payment link unavailable</span>
-                    </>
-                  )}
-                </div>
-                <div className="mt-2 flex items-center gap-2 text-sm">
+                {/* Payment status — all seven states */}
+                <div className="mt-3 space-y-2 text-sm">
                   {lead.customer_paid_at ? (
-                    <>
+                    <div className="flex items-center gap-2">
                       <span>✅</span>
                       <span className="text-[#374151] dark:text-[#CBD5E1]">
-                        Payment received — {formatDateTime(lead.customer_paid_at)}
+                        {lead.myob_invoice_id
+                          ? `Paid via MYOB — ${formatDateTime(lead.customer_paid_at)}`
+                          : (lead.stripe_payment_intent || lead.stripe_customer_payment_url)
+                          ? `Paid via Stripe — ${formatDateTime(lead.customer_paid_at)}`
+                          : `Paid — ${formatDateTime(lead.customer_paid_at)}`}
                       </span>
-                    </>
-                  ) : (
-                    <>
+                    </div>
+                  ) : lead.myob_invoice_id ? (
+                    <div className="flex items-center gap-2">
                       <span>⏳</span>
-                      <span className="text-[#6B7280] dark:text-[#94A3B8]">Awaiting payment</span>
-                    </>
+                      <span className="text-[#6B7280] dark:text-[#94A3B8]">Awaiting payment — MYOB invoice sent</span>
+                    </div>
+                  ) : lead.stripe_customer_payment_url ? (
+                    <div className="flex items-center gap-2">
+                      <span>⏳</span>
+                      <span className="text-[#6B7280] dark:text-[#94A3B8]">Awaiting payment — Stripe link active</span>
+                    </div>
+                  ) : lead.stripeCheckoutUrl ? (
+                    <div className="flex items-center gap-2">
+                      <span>⏳</span>
+                      <span className="text-[#6B7280] dark:text-[#94A3B8]">Awaiting payment — Stripe link active (legacy)</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span>⚠️</span>
+                      <span className="text-[#6B7280] dark:text-[#94A3B8]">No payment method configured</span>
+                    </div>
                   )}
                 </div>
               </div>
