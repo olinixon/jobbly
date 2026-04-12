@@ -31,7 +31,7 @@ function emailShell(content: string): string {
 }
 
 function primaryButton(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;">${label}</a>`
+  return `<a href="${href}" style="display:block;width:100%;background:#18181b;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:15px;font-weight:600;text-align:center;box-sizing:border-box;">${label}</a>`
 }
 
 interface LeadInput {
@@ -72,18 +72,11 @@ export async function buildCustomerNotificationEmail(
   const html = emailShell(`
     <tr><td style="padding:40px 40px 24px;">
       <p style="margin:0 0 6px;font-size:18px;font-weight:600;color:#18181b;">Hi ${firstName},</p>
-      <p style="margin:0 0 20px;font-size:15px;color:#71717a;">Your gutter clean at <strong style="color:#18181b;">${lead.propertyAddress}</strong> is now complete.</p>
-      <p style="margin:0 0 20px;font-size:15px;color:#71717a;">We hope everything went smoothly and that you're happy with the service.</p>
-      <p style="margin:0 0 20px;font-size:15px;color:#71717a;">Your invoice and job report are attached to this email for your records.</p>
-      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">You can also view them online and pay your invoice securely by clicking the button below.</p>
-      <div style="margin-bottom:24px;">${primaryButton(portalUrl, 'View Documents &amp; Pay Invoice')}</div>
-      <p style="margin:0 0 8px;font-size:13px;color:#a1a1aa;">Clicking the button takes you to a secure page where you can:</p>
-      <ul style="margin:0 0 24px;padding-left:20px;font-size:13px;color:#a1a1aa;">
-        <li style="margin-bottom:4px;">View and download your invoice</li>
-        <li style="margin-bottom:4px;">View and download your job report</li>
-        <li>Pay your invoice online via Stripe</li>
-      </ul>
-      <p style="margin:0 0 20px;font-size:14px;color:#71717a;">If you have any questions about the work carried out or your invoice, please don't hesitate to get in touch.</p>
+      <p style="margin:0 0 20px;font-size:15px;color:#71717a;">Your gutter clean at <strong style="color:#18181b;">${lead.propertyAddress}</strong> is now complete. We hope everything went smoothly and you&apos;re happy with the service.</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Your invoice and job report are attached to this email for your reference. You can also view them online and pay your invoice securely by clicking the button below.</p>
+      <div style="margin-bottom:12px;">${primaryButton(portalUrl, 'View Job Report &amp; Pay Invoice')}</div>
+      <p style="margin:0 0 24px;font-size:12px;color:#a1a1aa;text-align:center;">Paid securely through Stripe.</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#71717a;">If you have any questions about the work carried out or your invoice, please don&apos;t hesitate to get in touch.</p>
       <p style="margin:0 0 6px;font-size:14px;color:#71717a;">Thank you for choosing <strong style="color:#18181b;">${clientCompanyName}</strong>. We look forward to helping you again in the future.</p>
       <p style="margin:16px 0 4px;font-size:14px;color:#71717a;">Warm regards,</p>
       <p style="margin:0;font-size:14px;color:#71717a;">The ${clientCompanyName} Team</p>
