@@ -106,7 +106,7 @@ export default async function CustomerPortalPage({
         <span className="text-xs text-[#6B7280] ml-2">by Omniside AI</span>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         {/* Hero */}
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-1">
@@ -143,7 +143,7 @@ export default async function CustomerPortalPage({
                     <iframe
                       src={lead.invoiceUrl}
                       className="w-full rounded-lg border border-[#E5E7EB]"
-                      style={{ height: '400px' }}
+                      style={{ height: '600px' }}
                       title="Invoice"
                     />
                     <div className="mt-3">
@@ -190,7 +190,7 @@ export default async function CustomerPortalPage({
                     <iframe
                       src={lead.jobReportUrl}
                       className="w-full rounded-lg border border-[#E5E7EB]"
-                      style={{ height: '400px' }}
+                      style={{ height: '600px' }}
                       title="Job Report"
                     />
                     <div className="mt-3">
