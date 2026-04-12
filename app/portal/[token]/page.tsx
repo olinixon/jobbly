@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +39,7 @@ export default async function CustomerPortalPage({
       propertyAddress: true,
       invoiceUrl: true,
       jobReportUrl: true,
+      jobCompletedAt: true,
     },
   })
 
@@ -50,6 +50,45 @@ export default async function CustomerPortalPage({
           <p className="text-[#111827] text-lg font-semibold mb-2">Link not found</p>
           <p className="text-[#6B7280] text-sm">This link is invalid or has expired. Please contact us.</p>
         </div>
+      </div>
+    )
+  }
+
+  // Expiry check — 90 days after job completion. Null jobCompletedAt = active.
+  const EXPIRY_DAYS = 90
+  const isExpired =
+    lead.jobCompletedAt !== null &&
+    Date.now() - lead.jobCompletedAt.getTime() > EXPIRY_DAYS * 24 * 60 * 60 * 1000
+
+  if (isExpired) {
+    return (
+      <div className="min-h-screen bg-[#F9FAFB]">
+        <header className="bg-white border-b border-[#E5E7EB] px-6 py-4">
+          <span className="text-xl font-bold text-[#111827] tracking-tight">Jobbly</span>
+          <span className="text-xs text-[#6B7280] ml-2">by Omniside AI</span>
+        </header>
+        <main className="max-w-md mx-auto px-4 py-16 text-center">
+          <p className="text-3xl mb-4">🔗</p>
+          <h1 className="text-xl font-bold text-[#111827] mb-3">This Link Has Expired</h1>
+          <p className="text-[#6B7280] text-sm mb-6">
+            This portal link is no longer active. Please contact us if you need access to your documents or have a question about your invoice.
+          </p>
+          <div className="space-y-3 text-sm">
+            <p>
+              <a href="mailto:auckland@continuous.co.nz" className="text-[#2563EB] hover:underline">
+                auckland@continuous.co.nz
+              </a>
+            </p>
+            <p>
+              <a href="https://continuous.co.nz/jobs" target="_blank" rel="noopener noreferrer" className="text-[#2563EB] hover:underline">
+                continuous.co.nz/jobs
+              </a>
+            </p>
+          </div>
+        </main>
+        <footer className="text-center py-8">
+          <p className="text-xs text-[#9CA3AF]">Powered by Jobbly</p>
+        </footer>
       </div>
     )
   }
