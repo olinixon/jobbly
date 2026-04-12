@@ -42,9 +42,11 @@ model User {
   campaignId            String?
   isActive              Boolean   @default(true)
   lastLoginAt           DateTime?
-  notifyNewLead         Boolean   @default(true)
-  notifyJobCompleted    Boolean   @default(true)
-  invoice_reminder_day  Int?      // day of month (1–28) to receive reminder email; null = no reminder
+  notifyNewLead                Boolean   @default(true)
+  notifyJobCompleted           Boolean   @default(true)
+  invoice_reminder_day         Int?      // day of month (1–28) to receive reminder email; null = no reminder
+  notify_payment_reminder      Boolean   @default(true)  // ADMIN only — send Day 5 customer payment reminder
+  notify_payment_overdue       Boolean   @default(true)  // ADMIN only — send Day 7 overdue alert to Oli
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -115,8 +117,10 @@ model Lead {
   customerEmailSentAt      DateTime?
   stripeCheckoutUrl        String?
   invoiceTotalGstInclusive Float?    // GST-inclusive total extracted by AI at Submit Job — used as Stripe charge amount
-  customer_paid_at         DateTime? // Set by Stripe webhook when checkout.session.completed fires
-  stripe_payment_intent    String?   // Stripe PaymentIntent ID — set alongside customer_paid_at
+  customer_paid_at             DateTime? // Set by Stripe webhook when checkout.session.completed fires
+  stripe_payment_intent        String?   // Stripe PaymentIntent ID — set alongside customer_paid_at
+  payment_reminder_sent_at     DateTime? // Timestamp when the Day 5 reminder was sent to the customer
+  payment_overdue_alerted_at   DateTime? // Timestamp when the Day 7 alert was sent to Oli
   reconciliationBatchId String?
   notes                 String?
   internal_notes        String?
