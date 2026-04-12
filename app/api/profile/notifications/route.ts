@@ -15,6 +15,12 @@ export async function PATCH(request: NextRequest) {
   if (session.user.role === 'ADMIN' && typeof body.notifyJobCompleted === 'boolean') {
     updateData.notifyJobCompleted = body.notifyJobCompleted
   }
+  if (session.user.role === 'ADMIN' && typeof body.notify_payment_reminder === 'boolean') {
+    updateData.notify_payment_reminder = body.notify_payment_reminder
+  }
+  if (session.user.role === 'ADMIN' && typeof body.notify_payment_overdue === 'boolean') {
+    updateData.notify_payment_overdue = body.notify_payment_overdue
+  }
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })

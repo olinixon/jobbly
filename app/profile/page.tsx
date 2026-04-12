@@ -13,7 +13,7 @@ export default async function ProfilePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { notifyNewLead: true, notifyJobCompleted: true },
+    select: { notifyNewLead: true, notifyJobCompleted: true, notify_payment_reminder: true, notify_payment_overdue: true },
   })
 
   const campaignName =
@@ -59,6 +59,8 @@ export default async function ProfilePage() {
           role={session.user.role}
           notifyNewLead={user?.notifyNewLead ?? true}
           notifyJobCompleted={user?.notifyJobCompleted ?? true}
+          notifyPaymentReminder={user?.notify_payment_reminder ?? true}
+          notifyPaymentOverdue={user?.notify_payment_overdue ?? true}
         />
       </div>
     </AppShell>
