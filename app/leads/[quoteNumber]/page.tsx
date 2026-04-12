@@ -506,6 +506,49 @@ export default async function LeadDetailPage({
                     </div>
                   )}
                 </div>
+
+                {/* Payment Platform diagnostic — admin only */}
+                <div className="mt-4 pt-4 border-t border-[#F3F4F6] dark:border-[#334155]">
+                  <p className="text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-2">Payment Platform</p>
+                  {lead.myob_invoice_id ? (
+                    <div className="space-y-1 text-sm">
+                      <p className="text-[#374151] dark:text-[#CBD5E1]">MYOB — invoice created ✅</p>
+                      <p className="text-[#6B7280] dark:text-[#94A3B8]">
+                        Invoice ID: ...{lead.myob_invoice_id.slice(-8)}
+                      </p>
+                      {lead.myob_invoice_url && (
+                        <a
+                          href={lead.myob_invoice_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#2563EB] dark:text-[#3B82F6] hover:underline"
+                        >
+                          View Invoice →
+                        </a>
+                      )}
+                    </div>
+                  ) : lead.stripe_customer_payment_url ? (
+                    <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Stripe — payment link active ✅</p>
+                  ) : lead.stripeCheckoutUrl ? (
+                    <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">Stripe — payment link active ✅ (legacy)</p>
+                  ) : customerPaymentProfile?.verified ? (
+                    <div className="space-y-1 text-sm">
+                      <p className="text-amber-600 dark:text-amber-400">
+                        {customerPaymentProfile.provider} — payment link missing ⚠️
+                      </p>
+                      <p className="text-[#6B7280] dark:text-[#94A3B8] text-xs">
+                        Check lead notes for error details. Invoice may need to be created manually.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 text-sm">
+                      <p className="text-amber-600 dark:text-amber-400">No payment platform configured ⚠️</p>
+                      <p className="text-[#6B7280] dark:text-[#94A3B8] text-xs">
+                        Continuous Group has not connected a payment platform in Settings.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )
           })()}
