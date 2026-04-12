@@ -33,6 +33,7 @@ interface JobActionsProps {
   customerName?: string
   propertyAddress?: string
   customerEmail?: string | null
+  customerPaidAt?: string | null
 }
 
 export default function JobActions({
@@ -48,6 +49,7 @@ export default function JobActions({
   customerName: _customerName,
   propertyAddress: _propertyAddress,
   customerEmail,
+  customerPaidAt,
 }: JobActionsProps) {
   const router = useRouter()
   const [showRevertModal, setShowRevertModal] = useState(false)
@@ -99,6 +101,12 @@ export default function JobActions({
               {jobReportUrl
                 ? <a href={jobReportUrl} download className="text-[#2563EB] dark:text-[#3B82F6] hover:underline font-medium">Download</a>
                 : <span className="text-[#9CA3AF]">—</span>}
+            </div>
+            <div className="flex items-center justify-between text-sm pt-1 border-t border-[#F3F4F6] dark:border-[#334155]">
+              <span className="text-[#6B7280] dark:text-[#94A3B8]">Payment</span>
+              {customerPaidAt
+                ? <span className="text-green-600 dark:text-green-400 font-medium">✅ Received — {customerPaidAt}</span>
+                : <span className="text-[#9CA3AF] dark:text-[#475569]">⏳ Awaiting</span>}
             </div>
           </div>
           {customerEmail && (

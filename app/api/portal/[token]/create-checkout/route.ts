@@ -104,6 +104,7 @@ export async function POST(
         },
       ],
       mode: 'payment',
+      client_reference_id: token,
       success_url: `${appUrl}/portal/${token}?paid=true`,
       cancel_url: `${appUrl}/portal/${token}`,
       customer_email: lead.customerEmail ?? undefined,

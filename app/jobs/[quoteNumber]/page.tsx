@@ -249,6 +249,7 @@ export default async function JobDetailPage({
             customerName={job.customerName}
             propertyAddress={job.propertyAddress}
             customerEmail={job.customerEmail}
+            customerPaidAt={job.customer_paid_at ? formatDateTime(job.customer_paid_at) : null}
           />
 
           {/* Financials (subcontractor-restricted: no commission or margin) */}

@@ -115,6 +115,8 @@ model Lead {
   customerEmailSentAt      DateTime?
   stripeCheckoutUrl        String?
   invoiceTotalGstInclusive Float?    // GST-inclusive total extracted by AI at Submit Job — used as Stripe charge amount
+  customer_paid_at         DateTime? // Set by Stripe webhook when checkout.session.completed fires
+  stripe_payment_intent    String?   // Stripe PaymentIntent ID — set alongside customer_paid_at
   reconciliationBatchId String?
   notes                 String?
   internal_notes        String?

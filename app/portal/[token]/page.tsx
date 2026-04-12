@@ -40,6 +40,7 @@ export default async function CustomerPortalPage({
       invoiceUrl: true,
       jobReportUrl: true,
       jobCompletedAt: true,
+      customer_paid_at: true,
     },
   })
 
@@ -93,7 +94,9 @@ export default async function CustomerPortalPage({
     )
   }
 
-  const checkoutUrl = isPaid ? null : await getCheckoutUrl(token)
+  // customer_paid_at is the authoritative paid state; URL param ?paid=true is a fallback hint
+  const alreadyPaid = !!lead.customer_paid_at || isPaid
+  const checkoutUrl = alreadyPaid ? null : await getCheckoutUrl(token)
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
@@ -217,7 +220,7 @@ export default async function CustomerPortalPage({
           <h2 className="font-semibold text-[#111827] mb-4 flex items-center gap-2">
             <span>💳</span> Pay Your Invoice
           </h2>
-          {isPaid ? (
+          {alreadyPaid ? (
             <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
               <span className="text-xl">✅</span>
               <div>

@@ -476,9 +476,46 @@ export default async function LeadDetailPage({
                     </>
                   )}
                 </div>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  {lead.customer_paid_at ? (
+                    <>
+                      <span>✅</span>
+                      <span className="text-[#374151] dark:text-[#CBD5E1]">
+                        Payment received — {formatDateTime(lead.customer_paid_at)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>⏳</span>
+                      <span className="text-[#6B7280] dark:text-[#94A3B8]">Awaiting payment</span>
+                    </>
+                  )}
+                </div>
               </div>
             )
           })()}
+
+          {/* Payment status — client only, shown when portal token exists */}
+          {isClient && lead.customerPortalToken && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Customer Payment</h2>
+              <div className="flex items-center gap-2 text-sm">
+                {lead.customer_paid_at ? (
+                  <>
+                    <span>✅</span>
+                    <span className="text-[#374151] dark:text-[#CBD5E1]">
+                      Payment received — {formatDateTime(lead.customer_paid_at)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span>⏳</span>
+                    <span className="text-[#6B7280] dark:text-[#94A3B8]">Awaiting payment</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Audit log — admin sees inline with names; client sees collapsible with "Jobbly" */}
           {isAdmin && (
