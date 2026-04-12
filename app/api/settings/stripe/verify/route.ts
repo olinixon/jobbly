@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/encryption'
+import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -11,7 +12,21 @@ export async function POST(request: NextRequest) {
   }
 
   const userRole = session.user.role
-  const campaignId = session.user.campaignId
+  let campaignId = await getActiveCampaignId(session.user.campaignId, userRole)
+
+  // ADMIN fallback: if no campaign in session or cookie, auto-detect from DB
+  if (!campaignId && userRole === 'ADMIN') {
+    const campaigns = await prisma.campaign.findMany({ select: { id: true }, orderBy: { createdAt: 'desc' } })
+    if (campaigns.length === 1) {
+      campaignId = campaigns[0].id
+    } else if (campaigns.length > 1) {
+      return NextResponse.json(
+        { error: 'Multiple campaigns found — please select a campaign first.' },
+        { status: 400 }
+      )
+    }
+  }
+
   if (!campaignId) {
     return NextResponse.json(
       { error: 'No campaign selected. Please select a campaign before connecting Stripe.' },

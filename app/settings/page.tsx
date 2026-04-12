@@ -7,14 +7,44 @@ import SettingsForm from '@/components/campaigns/SettingsForm'
 import CampaignDangerZone from '@/components/campaigns/CampaignDangerZone'
 import StripeConnectionSetup from '@/components/settings/StripeConnectionSetup'
 import InvoiceReminderSettings from '@/components/settings/InvoiceReminderSettings'
+import CampaignPickerForSettings from '@/components/settings/CampaignPickerForSettings'
 import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ campaignId?: string }>
+}) {
   const session = await auth()
   if (!session || session.user.role !== 'ADMIN') redirect('/login')
 
-  const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
-  if (!campaignId) redirect('/campaigns')
+  const sp = await searchParams
+
+  // Try session + cookie first, then URL param (set by middleware on ?campaignId=xxx navigation)
+  let campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
+  if (!campaignId && sp.campaignId) campaignId = sp.campaignId
+
+  // ADMIN fallback: query campaigns to auto-select or show inline picker
+  if (!campaignId) {
+    const allCampaigns = await prisma.campaign.findMany({
+      select: { id: true, name: true, clientCompanyName: true },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (allCampaigns.length === 1) {
+      campaignId = allCampaigns[0].id
+    } else if (allCampaigns.length > 1) {
+      return (
+        <AppShell>
+          <PageHeader title="Settings" />
+          <div className="max-w-3xl mx-auto mt-8">
+            <CampaignPickerForSettings campaigns={allCampaigns} />
+          </div>
+        </AppShell>
+      )
+    } else {
+      redirect('/campaigns')
+    }
+  }
 
   const [campaign, jobTypes, rawSlots, user, billingProfile] = await Promise.all([
     prisma.campaign.findUnique({ where: { id: campaignId } }),
