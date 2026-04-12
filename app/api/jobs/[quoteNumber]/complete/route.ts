@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { analyzeInvoice } from '@/lib/analyzeInvoice'
 import { buildCustomerNotificationEmail } from '@/lib/buildCustomerNotificationEmail'
 import { sendMissingCustomerEmailAlert } from '@/lib/notifications'
+import { createMyobInvoice } from '@/lib/myob/createMyobInvoice'
+import { createCustomerPaymentCheckout } from '@/lib/stripe/createCustomerPaymentCheckout'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -91,7 +93,101 @@ export async function POST(
     })
   })
 
-  // ── Step 5: Send customer email (fire-and-forget) ─────────────────────────
+  // ── Step 5: Create payment record on connected platform ──────────────────
+  const paymentProfile = await prisma.customerPaymentProfile.findUnique({
+    where: { campaign_id: lead.campaignId },
+  })
+
+  let myobInvoiceId: string | null = null
+  let myobInvoiceUrl: string | null = null
+  let stripeCustomerPaymentUrl: string | null = null
+
+  if (paymentProfile?.verified) {
+    try {
+      if (paymentProfile.provider === 'MYOB') {
+        const result = await createMyobInvoice({
+          campaignId: lead.campaignId,
+          quoteNumber: lead.quoteNumber,
+          customerName: lead.customerName,
+          customerEmail: lead.customerEmail ?? '',
+          propertyAddress: lead.propertyAddress,
+          amountExGst: lead.customerPrice ?? 0, // customer_price is ex-GST (confirmed by Oli 2026-04-13)
+        })
+        myobInvoiceId = result.myobInvoiceId
+        myobInvoiceUrl = result.myobInvoiceUrl
+
+      } else if (paymentProfile.provider === 'STRIPE') {
+        // customer_price is ex-GST — multiply by 1.15, or use AI-extracted total if available
+        const amountInclGst = lead.invoiceTotalGstInclusive ?? (lead.customerPrice != null ? lead.customerPrice * 1.15 : 0)
+        const result = await createCustomerPaymentCheckout({
+          campaignId: lead.campaignId,
+          quoteNumber: lead.quoteNumber,
+          propertyAddress: lead.propertyAddress,
+          customerEmail: lead.customerEmail ?? '',
+          amountInclGst,
+          portalToken: customerPortalToken,
+        })
+        stripeCustomerPaymentUrl = result.checkoutUrl
+      }
+
+    } catch (error) {
+      // Log but do not throw — job completion must succeed regardless
+      console.error(`[Payment] Failed for ${lead.quoteNumber}:`, error)
+
+      // Append error to lead notes
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          notes: `${lead.notes ?? ''}\n[Payment Creation Error — ${new Date().toISOString()}] ${String(error)}`.trim(),
+        },
+      }).catch(() => {})
+
+      // Alert Oli — homeowner will have no payment link
+      try {
+        await resend.emails.send({
+          from: process.env.EMAIL_FROM!,
+          to: process.env.EMAIL_OLI!,
+          subject: `Payment link failed — ${lead.quoteNumber} — ${lead.customerName}`,
+          text: [
+            'Hi Oli,',
+            '',
+            'A payment link could not be created for a completed job.',
+            'The homeowner email was sent but the Pay Invoice button will not work.',
+            '',
+            `Quote:    ${lead.quoteNumber}`,
+            `Customer: ${lead.customerName}`,
+            `Address:  ${lead.propertyAddress}`,
+            `Platform: ${paymentProfile.provider}`,
+            `Error:    ${String(error)}`,
+            '',
+            'Portal link (share manually if needed):',
+            `${appUrl}/portal/${customerPortalToken}`,
+            '',
+            'Please create the invoice manually and send the payment link to the customer.',
+            '',
+            'Jobbly by Omniside AI',
+          ].join('\n'),
+        })
+      } catch (emailError) {
+        console.error('[Payment] Failed to send Oli alert email:', emailError)
+      }
+    }
+  } else {
+    console.warn(`[Payment] No verified payment platform for campaign ${lead.campaignId}`)
+  }
+
+  // Save payment fields to lead — do NOT write to stripeCheckoutUrl (legacy field only)
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      myob_invoice_id: myobInvoiceId,
+      myob_invoice_url: myobInvoiceUrl,
+      myob_invoice_created_at: myobInvoiceId ? new Date() : null,
+      stripe_customer_payment_url: stripeCustomerPaymentUrl,
+    },
+  })
+
+  // ── Step 6: Send customer email (fire-and-forget) ─────────────────────────
   ;(async () => {
     if (lead.customerEmail) {
       try {
