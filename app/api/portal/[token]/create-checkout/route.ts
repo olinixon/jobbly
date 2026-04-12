@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getStripeClient } from '@/lib/stripeClient'
+import { createCustomerPaymentCheckout } from '@/lib/stripe/createCustomerPaymentCheckout'
 
 export async function POST(
   _request: NextRequest,
@@ -18,10 +19,59 @@ export async function POST(
       invoiceTotalGstInclusive: true,
       propertyAddress: true,
       stripeCheckoutUrl: true,
+      stripe_customer_payment_url: true,
+      myob_invoice_url: true,
+      myob_invoice_created_at: true,
+      jobCompletedAt: true,
       campaignId: true,
     },
   })
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // ── Guard 1: MYOB path — return invoice URL directly, no Stripe session ──────
+  if (lead.myob_invoice_url) {
+    return NextResponse.json({ myobInvoiceUrl: lead.myob_invoice_url })
+  }
+
+  // ── Guard 2: New Stripe path (stripe_customer_payment_url) ───────────────────
+  if (lead.stripe_customer_payment_url) {
+    // Check if session is likely expired (Stripe sessions expire after 24 hours)
+    const referenceDate = lead.myob_invoice_created_at ?? lead.jobCompletedAt
+    const isLikelyExpired = referenceDate &&
+      (Date.now() - new Date(referenceDate).getTime()) > 23 * 60 * 60 * 1000
+
+    if (isLikelyExpired) {
+      const paymentProfile = await prisma.customerPaymentProfile.findUnique({
+        where: { campaign_id: lead.campaignId },
+      })
+      if (paymentProfile?.stripe_secret_key && paymentProfile.verified) {
+        try {
+          // customer_price is ex-GST — multiply by 1.15, or use AI-extracted total
+          const amountInclGst = lead.invoiceTotalGstInclusive ??
+            (lead.customerPrice != null ? lead.customerPrice * 1.15 : 0)
+          const result = await createCustomerPaymentCheckout({
+            campaignId: lead.campaignId,
+            quoteNumber: lead.quoteNumber,
+            propertyAddress: lead.propertyAddress,
+            customerEmail: lead.customerEmail ?? '',
+            amountInclGst,
+            portalToken: token,
+          })
+          await prisma.lead.update({
+            where: { customerPortalToken: token },
+            data: { stripe_customer_payment_url: result.checkoutUrl },
+          })
+          return NextResponse.json({ checkoutUrl: result.checkoutUrl })
+        } catch (error) {
+          console.error('[Portal] Stripe session refresh failed:', error)
+        }
+      }
+    }
+    return NextResponse.json({ checkoutUrl: lead.stripe_customer_payment_url })
+  }
+
+  // ── Legacy path: Stripe Checkout via CLIENT BillingProfile ───────────────────
+  // Everything below this line is unchanged from the original implementation.
 
   // Look up CLIENT BillingProfile for this campaign
   const billingProfile = await prisma.billingProfile.findUnique({

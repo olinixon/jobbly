@@ -2,18 +2,21 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-async function getCheckoutUrl(token: string): Promise<string | null> {
+async function getCheckoutUrl(token: string): Promise<{ checkoutUrl: string | null; myobInvoiceUrl: string | null }> {
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
     const res = await fetch(`${appUrl}/api/portal/${token}/create-checkout`, {
       method: 'POST',
       cache: 'no-store',
     })
-    if (!res.ok) return null
+    if (!res.ok) return { checkoutUrl: null, myobInvoiceUrl: null }
     const data = await res.json()
-    return data.checkoutUrl ?? null
+    return {
+      checkoutUrl: data.checkoutUrl ?? null,
+      myobInvoiceUrl: data.myobInvoiceUrl ?? null,
+    }
   } catch {
-    return null
+    return { checkoutUrl: null, myobInvoiceUrl: null }
   }
 }
 
@@ -41,6 +44,10 @@ export default async function CustomerPortalPage({
       jobReportUrl: true,
       jobCompletedAt: true,
       customer_paid_at: true,
+      myob_invoice_url: true,
+      myob_invoice_created_at: true,
+      stripe_customer_payment_url: true,
+      stripeCheckoutUrl: true,
     },
   })
 
@@ -94,9 +101,20 @@ export default async function CustomerPortalPage({
     )
   }
 
-  // customer_paid_at is the authoritative paid state; URL param ?paid=true is a fallback hint
+  // Priority 1 — customer_paid_at is the authoritative paid state (server-side)
   const alreadyPaid = !!lead.customer_paid_at || isPaid
-  const checkoutUrl = alreadyPaid ? null : await getCheckoutUrl(token)
+
+  // For unpaid leads, fetch payment info from create-checkout
+  // (handles new Stripe path expiry + legacy Stripe path)
+  let checkoutUrl: string | null = null
+  let resolvedMyobInvoiceUrl: string | null = lead.myob_invoice_url
+
+  if (!alreadyPaid) {
+    const result = await getCheckoutUrl(token)
+    checkoutUrl = result.checkoutUrl
+    // create-checkout may return myobInvoiceUrl directly if MYOB is the platform
+    if (result.myobInvoiceUrl) resolvedMyobInvoiceUrl = result.myobInvoiceUrl
+  }
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
@@ -215,11 +233,13 @@ export default async function CustomerPortalPage({
           )}
         </div>
 
-        {/* Payment */}
+        {/* Payment — five states in strict priority order */}
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm">
           <h2 className="font-semibold text-[#111827] mb-4 flex items-center gap-2">
             <span>💳</span> Pay Your Invoice
           </h2>
+
+          {/* Priority 1 — paid */}
           {alreadyPaid ? (
             <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
               <span className="text-xl">✅</span>
@@ -228,6 +248,35 @@ export default async function CustomerPortalPage({
                 <p className="text-sm text-[#6B7280] mt-1">We&apos;ll be in touch to confirm.</p>
               </div>
             </div>
+
+          /* Priority 2 — MYOB invoice URL set */
+          ) : resolvedMyobInvoiceUrl ? (
+            <div className="space-y-3">
+              <a
+                href={resolvedMyobInvoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full block text-center px-4 py-3 bg-[#2563EB] text-white font-semibold rounded-xl text-sm hover:bg-[#1D4ED8] transition-colors"
+              >
+                View &amp; Pay Invoice
+              </a>
+              <p className="text-sm text-[#6B7280]">
+                Opens your secure MYOB invoice in a new tab.
+                Pay by card (2.7% surcharge) or bank transfer (free).
+                Bank transfer details are shown on the invoice.
+              </p>
+            </div>
+
+          /* Priority 3 — new Stripe path (stripe_customer_payment_url) */
+          ) : checkoutUrl && !lead.stripeCheckoutUrl ? (
+            <a
+              href={checkoutUrl}
+              className="w-full block text-center px-4 py-3 bg-[#2563EB] text-white font-semibold rounded-xl text-sm hover:bg-[#1D4ED8] transition-colors"
+            >
+              Pay Invoice
+            </a>
+
+          /* Priority 4 — legacy Stripe checkout — completely unchanged */
           ) : checkoutUrl ? (
             <a
               href={checkoutUrl}
@@ -235,6 +284,8 @@ export default async function CustomerPortalPage({
             >
               Pay Invoice
             </a>
+
+          /* Priority 5 — nothing */
           ) : (
             <>
               <button
