@@ -6,7 +6,7 @@ import { authConfig } from './auth.config'
 // Edge-safe auth instance — no Prisma, reads JWT only
 const { auth } = NextAuth(authConfig)
 
-const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password', '/api/auth', '/api/webhooks']
+const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password', '/api/auth', '/api/webhooks', '/portal', '/api/portal']
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
