@@ -64,7 +64,7 @@ export default async function CustomerPortalPage({
         <span className="text-xs text-[#6B7280] ml-2">by Omniside AI</span>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* Hero */}
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-1">
@@ -76,99 +76,102 @@ export default async function CustomerPortalPage({
           </p>
         </div>
 
-        {/* Invoice */}
-        {lead.invoiceUrl && (
-          <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm">
-            <h2 className="font-semibold text-[#111827] mb-4 flex items-center gap-2">
-              <span>📄</span> Invoice
-            </h2>
-            {/* Mobile: download button only */}
-            <div className="block md:hidden">
-              <a
-                href={lead.invoiceUrl}
-                download
-                className="w-full block text-center px-4 py-3 bg-[#111827] text-white font-semibold rounded-xl text-sm"
-              >
-                Download Invoice
-              </a>
+        {/* Documents — two columns on desktop, stacked on mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Invoice */}
+          {lead.invoiceUrl && (
+            <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] mb-4 flex items-center gap-2">
+                <span>📄</span> Invoice
+              </h2>
+              {/* Mobile: download button only */}
+              <div className="block md:hidden">
+                <a
+                  href={lead.invoiceUrl}
+                  download
+                  className="w-full block text-center px-4 py-3 bg-[#111827] text-white font-semibold rounded-xl text-sm"
+                >
+                  Download Invoice
+                </a>
+              </div>
+              {/* Desktop: iframe + download link */}
+              <div className="hidden md:block">
+                {isPdf(lead.invoiceUrl) ? (
+                  <>
+                    <iframe
+                      src={lead.invoiceUrl}
+                      className="w-full rounded-lg border border-[#E5E7EB]"
+                      style={{ height: '400px' }}
+                      title="Invoice"
+                    />
+                    <div className="mt-3">
+                      <a href={lead.invoiceUrl} download className="text-sm text-[#2563EB] hover:underline">
+                        Download Invoice
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={lead.invoiceUrl} alt="Invoice" className="w-full rounded-lg border border-[#E5E7EB]" />
+                    <div className="mt-3">
+                      <a href={lead.invoiceUrl} download className="text-sm text-[#2563EB] hover:underline">
+                        Download Invoice
+                      </a>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-            {/* Desktop: iframe + download link */}
-            <div className="hidden md:block">
-              {isPdf(lead.invoiceUrl) ? (
-                <>
-                  <iframe
-                    src={lead.invoiceUrl}
-                    className="w-full rounded-lg border border-[#E5E7EB]"
-                    style={{ height: '500px' }}
-                    title="Invoice"
-                  />
-                  <div className="mt-3">
-                    <a href={lead.invoiceUrl} download className="text-sm text-[#2563EB] hover:underline">
-                      Download Invoice
-                    </a>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={lead.invoiceUrl} alt="Invoice" className="w-full rounded-lg border border-[#E5E7EB]" />
-                  <div className="mt-3">
-                    <a href={lead.invoiceUrl} download className="text-sm text-[#2563EB] hover:underline">
-                      Download Invoice
-                    </a>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Job Report */}
-        {lead.jobReportUrl && (
-          <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm">
-            <h2 className="font-semibold text-[#111827] mb-4 flex items-center gap-2">
-              <span>📋</span> Job Report
-            </h2>
-            {/* Mobile: download button only */}
-            <div className="block md:hidden">
-              <a
-                href={lead.jobReportUrl}
-                download
-                className="w-full block text-center px-4 py-3 bg-[#111827] text-white font-semibold rounded-xl text-sm"
-              >
-                Download Job Report
-              </a>
+          {/* Job Report */}
+          {lead.jobReportUrl && (
+            <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] mb-4 flex items-center gap-2">
+                <span>📋</span> Job Report
+              </h2>
+              {/* Mobile: download button only */}
+              <div className="block md:hidden">
+                <a
+                  href={lead.jobReportUrl}
+                  download
+                  className="w-full block text-center px-4 py-3 bg-[#111827] text-white font-semibold rounded-xl text-sm"
+                >
+                  Download Job Report
+                </a>
+              </div>
+              {/* Desktop: iframe + download link */}
+              <div className="hidden md:block">
+                {isPdf(lead.jobReportUrl) ? (
+                  <>
+                    <iframe
+                      src={lead.jobReportUrl}
+                      className="w-full rounded-lg border border-[#E5E7EB]"
+                      style={{ height: '400px' }}
+                      title="Job Report"
+                    />
+                    <div className="mt-3">
+                      <a href={lead.jobReportUrl} download className="text-sm text-[#2563EB] hover:underline">
+                        Download Job Report
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={lead.jobReportUrl} alt="Job Report" className="w-full rounded-lg border border-[#E5E7EB]" />
+                    <div className="mt-3">
+                      <a href={lead.jobReportUrl} download className="text-sm text-[#2563EB] hover:underline">
+                        Download Job Report
+                      </a>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-            {/* Desktop: iframe + download link */}
-            <div className="hidden md:block">
-              {isPdf(lead.jobReportUrl) ? (
-                <>
-                  <iframe
-                    src={lead.jobReportUrl}
-                    className="w-full rounded-lg border border-[#E5E7EB]"
-                    style={{ height: '500px' }}
-                    title="Job Report"
-                  />
-                  <div className="mt-3">
-                    <a href={lead.jobReportUrl} download className="text-sm text-[#2563EB] hover:underline">
-                      Download Job Report
-                    </a>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={lead.jobReportUrl} alt="Job Report" className="w-full rounded-lg border border-[#E5E7EB]" />
-                  <div className="mt-3">
-                    <a href={lead.jobReportUrl} download className="text-sm text-[#2563EB] hover:underline">
-                      Download Job Report
-                    </a>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Payment */}
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 shadow-sm">
