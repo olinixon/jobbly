@@ -7,6 +7,14 @@ export const authConfig: NextAuthConfig = {
   pages: { signIn: '/login' },
   providers: [],
   callbacks: {
+    authorized({ auth, request: { nextUrl } }) {
+      const isLoggedIn = !!auth?.user
+      const isPublic =
+        nextUrl.pathname === '/login' ||
+        nextUrl.pathname.startsWith('/portal') ||
+        nextUrl.pathname.startsWith('/api/portal')
+      return isPublic || isLoggedIn
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
