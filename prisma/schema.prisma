@@ -23,14 +23,15 @@ model Campaign {
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
 
-  users                 User[]
-  leads                 Lead[]
-  auditLogs             AuditLog[]
-  attachments           Attachment[]
-  reconciliationBatches ReconciliationBatch[]
-  jobTypes              JobType[]
-  availabilitySlots     AvailabilitySlot[]
-  billing_profiles      BillingProfile[]
+  users                    User[]
+  leads                    Lead[]
+  auditLogs                AuditLog[]
+  attachments              Attachment[]
+  reconciliationBatches    ReconciliationBatch[]
+  jobTypes                 JobType[]
+  availabilitySlots        AvailabilitySlot[]
+  billing_profiles         BillingProfile[]
+  customer_payment_profile CustomerPaymentProfile?
 }
 
 model User {
@@ -121,6 +122,10 @@ model Lead {
   stripe_payment_intent        String?   // Stripe PaymentIntent ID — set alongside customer_paid_at
   payment_reminder_sent_at     DateTime? // Timestamp when the Day 5 reminder was sent to the customer
   payment_overdue_alerted_at   DateTime? // Timestamp when the Day 7 alert was sent to Oli
+  myob_invoice_id              String?   // MYOB invoice UID — set when MYOB invoice is created on job completion
+  myob_invoice_url             String?   // MYOB hosted invoice URL for homeowner payment
+  myob_invoice_created_at      DateTime? // Timestamp when MYOB invoice was created
+  stripe_customer_payment_url  String?   // New Stripe Checkout URL (distinct from legacy stripeCheckoutUrl)
   reconciliationBatchId String?
   notes                 String?
   internal_notes        String?
@@ -225,6 +230,30 @@ model Booking {
 
   slot AvailabilitySlot @relation(fields: [slotId], references: [id])
   lead Lead             @relation(fields: [leadId], references: [id])
+}
+
+model CustomerPaymentProfile {
+  id          String    @id @default(cuid())
+  campaign_id String    @unique
+  provider    String    // 'STRIPE' | 'MYOB' — string not enum for extensibility
+
+  // Stripe fields (populated when provider = 'STRIPE', nulled when switching away)
+  stripe_secret_key       String?   // AES-256 encrypted
+  stripe_webhook_secret   String?   // AES-256 encrypted
+
+  // MYOB fields (populated when provider = 'MYOB', nulled when switching away)
+  myob_company_file_id    String?
+  myob_access_token       String?   // AES-256 encrypted
+  myob_refresh_token      String?   // AES-256 encrypted
+  myob_token_expiry       DateTime?
+
+  // Common
+  verified      Boolean   @default(false)
+  verified_at   DateTime?
+  connected_at  DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  campaign      Campaign  @relation(fields: [campaign_id], references: [id])
 }
 
 model BillingProfile {
