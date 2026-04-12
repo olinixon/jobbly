@@ -232,6 +232,7 @@ model BillingProfile {
   billing_address       String?
   stripe_customer_id    String?   // required for ADMIN invoicing flow; null for CLIENT payment_only flow
   stripe_secret_key     String    // encrypted at rest — never stored plain text
+  stripe_webhook_secret String?   // AES-256 encrypted — same pattern as stripe_secret_key
   stripe_gst_rate_id    String?   // required for ADMIN invoicing flow; null for CLIENT payment_only flow
   stripe_verified       Boolean   @default(false)
   stripe_verified_at    DateTime?

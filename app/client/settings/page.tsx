@@ -5,6 +5,7 @@ import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import StripeConnectionSetup from '@/components/settings/StripeConnectionSetup'
 import InvoiceReminderSettings from '@/components/settings/InvoiceReminderSettings'
+import WebhookSetup from '@/components/settings/WebhookSetup'
 
 export default async function ClientSettingsPage() {
   const session = await auth()
@@ -30,6 +31,7 @@ export default async function ClientSettingsPage() {
         billing_address: true,
         stripe_verified: true,
         stripe_verified_at: true,
+        stripe_webhook_secret: true,
       },
     }),
   ])
@@ -45,6 +47,11 @@ export default async function ClientSettingsPage() {
         stripe_verified_at: billingProfile.stripe_verified_at?.toISOString() ?? null,
       }
     : null
+
+  const stripeVerified = billingProfile?.stripe_verified === true
+  const hasWebhookSecret = !!billingProfile?.stripe_webhook_secret
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const webhookUrl = `${appUrl}/api/webhooks/stripe`
 
   return (
     <AppShell>
@@ -73,6 +80,17 @@ export default async function ClientSettingsPage() {
             <div className="border-t border-[#E5E7EB] dark:border-[#334155] pt-6">
               <h3 className="text-sm font-semibold text-[#374151] dark:text-[#CBD5E1] mb-3">Invoice Reminder</h3>
               <InvoiceReminderSettings initialDay={user?.invoice_reminder_day ?? null} />
+            </div>
+
+            <div className="border-t border-[#E5E7EB] dark:border-[#334155] pt-6">
+              <h3 className="text-sm font-semibold text-[#374151] dark:text-[#CBD5E1] mb-3">Webhook Setup</h3>
+              {stripeVerified ? (
+                <WebhookSetup webhookUrl={webhookUrl} hasExistingSecret={hasWebhookSecret} />
+              ) : (
+                <p className="text-sm text-[#9CA3AF] dark:text-[#475569]">
+                  Complete your Stripe connection above before setting up webhooks.
+                </p>
+              )}
             </div>
           </div>
         </section>
