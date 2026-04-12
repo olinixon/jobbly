@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
 import StripeConnectionSetup from '@/components/settings/StripeConnectionSetup'
-import InvoiceReminderSettings from '@/components/settings/InvoiceReminderSettings'
 import WebhookSetup from '@/components/settings/WebhookSetup'
 
 export default async function ClientSettingsPage() {
@@ -14,14 +13,10 @@ export default async function ClientSettingsPage() {
   const campaignId = session.user.campaignId
   if (!campaignId) redirect('/dashboard')
 
-  const [campaign, user, billingProfile] = await Promise.all([
+  const [campaign, billingProfile] = await Promise.all([
     prisma.campaign.findUnique({
       where: { id: campaignId },
       select: { clientCompanyName: true, subcontractorCompanyName: true },
-    }),
-    prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { invoice_reminder_day: true },
     }),
     prisma.billingProfile.findUnique({
       where: { campaign_id_role: { campaign_id: campaignId, role: 'CLIENT' } },
@@ -75,11 +70,6 @@ export default async function ClientSettingsPage() {
                 recipientCompanyName={campaign.subcontractorCompanyName}
                 initialProfile={profileSummary}
               />
-            </div>
-
-            <div className="border-t border-[#E5E7EB] dark:border-[#334155] pt-6">
-              <h3 className="text-sm font-semibold text-[#374151] dark:text-[#CBD5E1] mb-3">Invoice Reminder</h3>
-              <InvoiceReminderSettings initialDay={user?.invoice_reminder_day ?? null} />
             </div>
 
             <div className="border-t border-[#E5E7EB] dark:border-[#334155] pt-6">
