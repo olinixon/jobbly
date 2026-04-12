@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   if (!stripe_secret_key || !company_name || !billing_email) {
     return NextResponse.json({ error: 'Secret key, company name, and billing email are required.' }, { status: 400 })
   }
-  if (!isPaymentOnly && (!stripe_gst_rate_id || !stripe_customer_id)) {
+  if (!isPaymentOnly && !stripe_customer_id) {
     return NextResponse.json({ error: 'All fields except billing address are required.' }, { status: 400 })
   }
 
@@ -61,22 +61,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step B — verify the GST tax rate ID
-    try {
-      await stripe.taxRates.retrieve(stripe_gst_rate_id)
-    } catch (err) {
-      const stripeErr = err as InstanceType<typeof Stripe.errors.StripeError>
-      if (stripeErr.code === 'resource_missing' || stripeErr.type === 'StripeInvalidRequestError') {
-        return NextResponse.json(
-          { error: "Connected to Stripe, but we couldn't find that tax rate. Double-check the GST Tax Rate ID." },
-          { status: 400 }
-        )
-      }
-      return NextResponse.json(
-        { error: "Connected to Stripe, but we couldn't find that tax rate. Double-check the GST Tax Rate ID." },
-        { status: 400 }
-      )
-    }
   } else {
     // payment_only: just confirm the key is valid
     try {

@@ -20,11 +20,9 @@ interface Props {
 
 const STEPS_FULL = [
   { title: 'Create or log in to your Stripe account' },
-  { title: 'Enable Invoicing in Stripe' },
-  { title: 'Create a 15% GST Tax Rate' },
-  { title: 'Create a Customer for your recipient' },
+  { title: 'Copy your Secret Key' },
+  { title: 'Create a customer for your client in Stripe' },
   { title: 'Connect Stripe to Jobbly' },
-  { title: 'Set your invoice reminder day' },
 ]
 
 const STEPS_PAYMENT_ONLY = [
@@ -258,38 +256,31 @@ export default function StripeConnectionSetup({ role, senderCompanyName, recipie
                     )}
                     {idx === 1 && (
                       <div className="space-y-2 text-sm text-[#374151] dark:text-[#CBD5E1]">
-                        <p>In your Stripe dashboard, go to <strong>Settings → Billing → Invoice settings</strong>.</p>
-                        <p>Set your default payment terms (e.g. "Due in 30 days").</p>
-                        <p>Add your business details: company name, address, email, logo (optional).</p>
+                        <p>In your Stripe dashboard, go to <strong>Developers → API Keys</strong>.</p>
+                        <p>Copy your <strong>Secret Key</strong>. It starts with <code className="bg-[#F3F4F6] dark:bg-[#0F172A] px-1 rounded">sk_live_...</code></p>
+                        <p className="text-xs text-[#9CA3AF] dark:text-[#475569]">Keep this key private — do not share it with anyone.</p>
                         <button onClick={() => markComplete(idx)} className="mt-2 text-xs font-medium text-[#2563EB] dark:text-[#3B82F6] hover:underline">Mark complete →</button>
                       </div>
                     )}
                     {idx === 2 && (
                       <div className="space-y-2 text-sm text-[#374151] dark:text-[#CBD5E1]">
-                        <p>In Stripe, go to <strong>Settings → Business tax details</strong>.</p>
-                        <p>Display name: <strong>GST</strong>, Percentage: <strong>15</strong>, Inclusive: <strong>No</strong>.</p>
-                        <p>Save and copy the <strong>Tax Rate ID</strong> (starts with <code className="bg-[#F3F4F6] dark:bg-[#0F172A] px-1 rounded">txr_...</code>).</p>
+                        <p>In Stripe, go to <strong>Customers → + Add customer</strong>.</p>
+                        <p>Fill in:</p>
+                        <ul className="list-disc list-inside space-y-1 ml-2">
+                          <li>Name: <strong>{recipientCompanyName}</strong></li>
+                          <li>Email: <strong>{recipientCompanyName}&apos;s billing email</strong> (e.g. accounts@continuous.co.nz)</li>
+                        </ul>
+                        <p>Save the customer. Copy the <strong>Customer ID</strong> shown — it starts with <code className="bg-[#F3F4F6] dark:bg-[#0F172A] px-1 rounded">cus_...</code></p>
+                        <p className="text-xs text-[#9CA3AF] dark:text-[#475569]">This is who Stripe will address your invoices to.</p>
                         <button onClick={() => markComplete(idx)} className="mt-2 text-xs font-medium text-[#2563EB] dark:text-[#3B82F6] hover:underline">Mark complete →</button>
                       </div>
                     )}
                     {idx === 3 && (
-                      <div className="space-y-2 text-sm text-[#374151] dark:text-[#CBD5E1]">
-                        <p>In Stripe, go to <strong>Customers → Add customer</strong>.</p>
-                        <p>Name: <strong>{recipientCompanyName}</strong>. Add their billing address, then save.</p>
-                        <p>Copy the <strong>Customer ID</strong> (starts with <code className="bg-[#F3F4F6] dark:bg-[#0F172A] px-1 rounded">cus_...</code>).</p>
-                        <button onClick={() => markComplete(idx)} className="mt-2 text-xs font-medium text-[#2563EB] dark:text-[#3B82F6] hover:underline">Mark complete →</button>
-                      </div>
-                    )}
-                    {idx === 4 && (
                       <div className="space-y-3">
                         <div className="space-y-3">
                           <div>
                             <label className="block text-xs font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">Stripe Secret Key</label>
                             <input type="password" placeholder="sk_live_... or sk_test_..." value={form.stripe_secret_key} onChange={e => setForm(f => ({ ...f, stripe_secret_key: e.target.value }))} className="w-full px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">GST Tax Rate ID</label>
-                            <input type="text" placeholder="txr_..." value={form.stripe_gst_rate_id} onChange={e => setForm(f => ({ ...f, stripe_gst_rate_id: e.target.value }))} className="w-full px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">{recipientCompanyName} Customer ID</label>
@@ -300,7 +291,8 @@ export default function StripeConnectionSetup({ role, senderCompanyName, recipie
                             <input type="text" value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} className="w-full px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">Billing email</label>
+                            <label className="block text-xs font-medium text-[#374151] dark:text-[#CBD5E1] mb-1">Client Billing Email</label>
+                            <p className="text-xs text-[#9CA3AF] dark:text-[#475569] mb-1">The email address invoices will be sent to — this is {recipientCompanyName}&apos;s billing email, not yours.</p>
                             <input type="email" value={form.billing_email} onChange={e => setForm(f => ({ ...f, billing_email: e.target.value }))} className="w-full px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
                           </div>
                           <div>
@@ -309,15 +301,10 @@ export default function StripeConnectionSetup({ role, senderCompanyName, recipie
                           </div>
                         </div>
                         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-                        <button onClick={handleVerify} disabled={saving || !form.stripe_secret_key || !form.stripe_gst_rate_id || !form.stripe_customer_id || !form.company_name || !form.billing_email} className="px-4 py-2 text-sm font-medium rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button onClick={handleVerify} disabled={saving || !form.stripe_secret_key || !form.stripe_customer_id || !form.company_name || !form.billing_email} className="px-4 py-2 text-sm font-medium rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                           {saving ? 'Verifying…' : 'Save & Verify'}
                         </button>
                       </div>
-                    )}
-                    {idx === 5 && (
-                      <p className="text-sm text-[#374151] dark:text-[#CBD5E1]">
-                        Set your invoice reminder day in the <strong>Invoice Reminder</strong> section below.
-                      </p>
                     )}
                   </>
                 )}

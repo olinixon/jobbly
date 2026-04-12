@@ -68,12 +68,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Stripe not connected.' }, { status: 403 })
   }
 
-  if (!billingProfile.stripe_customer_id || !billingProfile.stripe_gst_rate_id) {
+  if (!billingProfile.stripe_customer_id) {
     return NextResponse.json({ error: 'Stripe invoicing is not fully configured for this account.' }, { status: 403 })
   }
 
   const stripeCustomerId = billingProfile.stripe_customer_id
-  const stripeGstRateId = billingProfile.stripe_gst_rate_id
 
   // Build invoice via Stripe — entire sequence wrapped in try/catch
   try {
@@ -87,21 +86,29 @@ export async function POST(request: NextRequest) {
       days_until_due: 14,
     })
 
-    // Add one line item per lead at the correct cut amount
-    for (const lead of batch.leads) {
-      const cutAmount = userRole === 'ADMIN'
-        ? (lead.omnisideCommission ?? 0)
-        : (lead.grossMarkup ?? 0)
+    // Calculate totals across all leads
+    const subtotalExGst = batch.leads.reduce((sum, lead) => {
+      const cut = userRole === 'ADMIN' ? (lead.omnisideCommission ?? 0) : (lead.grossMarkup ?? 0)
+      return sum + cut
+    }, 0)
+    const gstAmount = Math.round(subtotalExGst * 0.15 * 100) / 100
 
-      await stripe.invoiceItems.create({
-        customer: stripeCustomerId,
-        invoice: invoice.id,
-        description: `${lead.quoteNumber} — ${lead.customerName}`,
-        amount: Math.round(cutAmount * 100), // Stripe uses cents
-        currency: 'nzd',
-        tax_rates: [stripeGstRateId],
-      })
-    }
+    // Two summary line items: subtotal ex GST + GST 15%
+    await stripe.invoiceItems.create({
+      customer: stripeCustomerId,
+      invoice: invoice.id,
+      description: `Commission — ${batch.label} (ex GST)`,
+      amount: Math.round(subtotalExGst * 100),
+      currency: 'nzd',
+    })
+
+    await stripe.invoiceItems.create({
+      customer: stripeCustomerId,
+      invoice: invoice.id,
+      description: 'GST (15%)',
+      amount: Math.round(gstAmount * 100),
+      currency: 'nzd',
+    })
 
     // Finalise then send
     await stripe.invoices.finalizeInvoice(invoice.id)
