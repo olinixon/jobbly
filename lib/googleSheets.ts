@@ -11,14 +11,14 @@ export interface CallStats {
 }
 
 export async function getCallStats(from?: Date, to?: Date): Promise<CallStats> {
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_BASE64) {
     throw new Error('Google Sheets credentials not configured')
   }
 
-  const privateKey = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '')
-    .replace(/\\n/g, '\n')
-    .replace(/^"|"$/g, '')
-    .trim()
+  const privateKey = Buffer.from(
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_BASE64 || '',
+    'base64'
+  ).toString('utf-8')
 
   const authClient = new googleAuth.GoogleAuth({
     credentials: {
