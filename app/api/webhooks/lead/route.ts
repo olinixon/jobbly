@@ -122,28 +122,26 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Fire-and-forget email to eligible subcontractors
-    ;(async () => {
-      try {
-        const recipients = await prisma.user.findMany({
-          where: { campaignId: campaign.id, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
-          select: { email: true, name: true },
-        })
-        if (recipients.length > 0) {
-          await sendNewLeadEmail({
-            recipients,
-            quoteNumber,
-            customerName: lead.customerName,
-            propertyAddress: lead.propertyAddress,
-            googleMapsUrl: lead.googleMapsUrl,
-            storeyCount: lead.storey_count,
-            gutterGuards: lead.gutter_guards,
-          })
-        }
-      } catch (err) {
-        console.error('New lead email failed:', err)
-      }
-    })()
+    // Always send new lead email — awaited, no duplicate suppression, fires on every webhook receipt
+    const recipients = await prisma.user.findMany({
+      where: { campaignId: campaign.id, role: 'SUBCONTRACTOR', isActive: true, notifyNewLead: true },
+      select: { email: true, name: true },
+    })
+    try {
+      await sendNewLeadEmail({
+        recipients,
+        quoteNumber,
+        customerName: lead.customerName,
+        propertyAddress: lead.propertyAddress,
+        googleMapsUrl: lead.googleMapsUrl,
+        storeyCount: lead.storey_count,
+        gutterGuards: lead.gutter_guards,
+      })
+    } catch (emailError) {
+      console.error('[Webhook] Failed to send new lead email:', emailError)
+      // Do NOT throw — email failure must not cause the webhook to return an error
+      // The lead is already created; log and continue
+    }
 
     // Duplicate detection — after lead created and emails fired
     ;(async () => {
