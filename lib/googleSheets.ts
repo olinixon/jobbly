@@ -15,25 +15,33 @@ export async function getCallStats(from?: Date, to?: Date): Promise<CallStats> {
     throw new Error('Google Sheets credentials not configured')
   }
 
+  const privateKey = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '')
+    .replace(/\\n/g, '\n')
+    .replace(/^"|"$/g, '')
+    .trim()
+
   const authClient = new googleAuth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '')
-        .replace(/\\n/g, '\n')
-        .replace(/^"|"$/g, '')
-        .trim(),
+      private_key: privateKey,
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
   })
 
   const client = sheets({ version: 'v4', auth: authClient })
 
-  const response = await client.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: SHEET_RANGE,
-  })
+  let response
+  try {
+    response = await client.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: SHEET_RANGE,
+    })
+  } catch (err) {
+    console.error('[CallStats] Sheets API error:', err)
+    throw err
+  }
 
-  const rows = response.data.values ?? []
+  const rows = (response?.data.values) ?? []
 
   // Skip header row (index 0), filter to rows with a non-empty Lead ID
   let dataRows = rows.slice(1).filter(row => row[0] && String(row[0]).trim() !== '')
