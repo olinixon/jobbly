@@ -23,28 +23,28 @@ export async function GET(request: NextRequest) {
   const toDate = new Date(to)
   toDate.setHours(23, 59, 59, 999)
 
-  const slots = await prisma.availabilitySlot.findMany({
+  const leads = await prisma.lead.findMany({
     where: {
       campaignId,
-      date: { gte: fromDate, lte: toDate },
+      status: { in: ['JOB_BOOKED', 'JOB_COMPLETED'] },
+      jobBookedDate: { gte: fromDate, lte: toDate },
     },
-    orderBy: { date: 'asc' },
-    include: {
-      bookings: {
-        where: { status: 'CONFIRMED' },
-        include: {
-          lead: {
-            select: {
-              quoteNumber: true,
-              customerName: true,
-              propertyAddress: true,
-              jobType: { select: { name: true, durationMinutes: true } },
-            },
-          },
-        },
-      },
+    select: {
+      quoteNumber: true,
+      customerName: true,
+      jobBookedDate: true,
     },
+    orderBy: { jobBookedDate: 'asc' },
   })
 
-  return NextResponse.json({ slots })
+  // Group by date string (YYYY-MM-DD)
+  const jobs: Record<string, { quoteNumber: string; customerName: string }[]> = {}
+  for (const lead of leads) {
+    if (!lead.jobBookedDate) continue
+    const date = lead.jobBookedDate.toISOString().split('T')[0]
+    if (!jobs[date]) jobs[date] = []
+    jobs[date].push({ quoteNumber: lead.quoteNumber, customerName: lead.customerName })
+  }
+
+  return NextResponse.json({ jobs })
 }

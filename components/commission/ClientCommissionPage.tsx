@@ -2,32 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import PageHeader from '@/components/layout/PageHeader'
 import { StatCard } from '@/components/ui/Card'
-import { formatDate } from '@/lib/formatDate'
 
-interface MonthLead {
+interface InvoiceLead {
   quoteNumber: string
   customerName: string
-  propertyAddress: string
   grossMarkup: number | null
-}
-
-interface MonthData {
-  monthKey: string
-  label: string
-  jobCount: number
-  totalGrossMarkup: number
-  leads: MonthLead[]
-}
-
-interface ClientBatchData {
-  id: string
-  label: string
-  reconciledAt: string | null
-  totalJobs: number
-  totalGrossMarkup: number
-  monthKeys: string
+  sentAt: string | null
+  paidAt: string | null
+  isPaid: boolean
+  isSent: boolean
 }
 
 interface Props {
@@ -41,6 +25,11 @@ interface Props {
 }
 
 const fmt = (n: number | null | undefined) => (n != null ? `$${n.toFixed(2)}` : '—')
+
+const fmtDate = (iso: string | null) => {
+  if (!iso) return null
+  return new Date(iso).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 
 const DATE_RANGE_OPTIONS = [
   { value: 'all-time', label: 'All time' },
@@ -85,8 +74,6 @@ function getFromTo(dateRange: string, customFrom: string, customTo: string): { f
 
 export default function ClientCommissionPage({
   campaignName,
-  clientCompanyName,
-  subcontractorCompanyName,
   initialDateRange,
   initialFrom,
   initialTo,
@@ -94,16 +81,12 @@ export default function ClientCommissionPage({
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [tab, setTab] = useState<'months' | 'batches'>('months')
+  const [tab, setTab] = useState<'unpaid' | 'paid'>('unpaid')
   const [dateRange, setDateRange] = useState(initialDateRange)
   const [customFrom, setCustomFrom] = useState(initialFrom)
   const [customTo, setCustomTo] = useState(initialTo)
-  const [months, setMonths] = useState<MonthData[]>([])
+  const [leads, setLeads] = useState<InvoiceLead[]>([])
   const [loading, setLoading] = useState(true)
-  const [batches, setBatches] = useState<ClientBatchData[]>([])
-  const [loadingBatches, setLoadingBatches] = useState(false)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [invoiceMonth, setInvoiceMonth] = useState<MonthData | null>(null)
 
   function buildUrl(params: Record<string, string>) {
     const sp = new URLSearchParams(searchParams.toString())
@@ -116,57 +99,51 @@ export default function ClientCommissionPage({
     router.push(url)
   }
 
-  const fetchMonths = useCallback(async () => {
+  const fetchLeads = useCallback(async () => {
     setLoading(true)
     const { from, to } = getFromTo(dateRange, customFrom, customTo)
     const params = new URLSearchParams()
     if (from) params.set('from', from)
     if (to) params.set('to', to)
-    const res = await fetch(`/api/client/commission/months?${params.toString()}`)
-    if (res.ok) setMonths(await res.json())
+    const res = await fetch(`/api/client/commission/invoices?${params.toString()}`)
+    if (res.ok) setLeads(await res.json())
     setLoading(false)
   }, [dateRange, customFrom, customTo])
 
-  const fetchBatches = useCallback(async () => {
-    setLoadingBatches(true)
-    const res = await fetch('/api/client/commission/batches')
-    if (res.ok) setBatches(await res.json())
-    setLoadingBatches(false)
-  }, [])
+  useEffect(() => { fetchLeads() }, [fetchLeads])
 
-  useEffect(() => { fetchMonths() }, [fetchMonths])
-  useEffect(() => { fetchBatches() }, [fetchBatches])
+  const unpaid = leads.filter(l => !l.isPaid)
+  const paid = leads.filter(l => l.isPaid)
+  const shown = tab === 'unpaid' ? unpaid : paid
 
-  const totalMarkup = months.reduce((s, m) => s + m.totalGrossMarkup, 0)
-
+  const totalMarkup = leads.reduce((s, l) => s + (l.grossMarkup ?? 0), 0)
+  const paidMarkup = paid.reduce((s, l) => s + (l.grossMarkup ?? 0), 0)
 
   return (
     <>
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#111827] dark:text-[#F1F5F9]">Financials</h1>
-          <p className="mt-1 text-sm text-[#6B7280] dark:text-[#94A3B8]">Monthly markup summary — {campaignName}</p>
+          <p className="mt-1 text-sm text-[#6B7280] dark:text-[#94A3B8]">Invoice summary — {campaignName}</p>
         </div>
 
-        {/* Date range filter (only relevant to By Month tab) */}
-        {tab === 'months' && (
-          <div className="flex items-center gap-2">
-            <select
-              value={dateRange}
-              onChange={(e) => { setDateRange(e.target.value); applyRange(e.target.value) }}
-              className="px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-            >
-              {DATE_RANGE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            {dateRange === 'custom' && (
-              <>
-                <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="px-2 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
-                <span className="text-[#6B7280] dark:text-[#94A3B8] text-sm">to</span>
-                <input type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); if (customFrom) applyRange('custom', customFrom, e.target.value) }} className="px-2 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
-              </>
-            )}
-          </div>
-        )}
+        {/* Date range filter */}
+        <div className="flex items-center gap-2">
+          <select
+            value={dateRange}
+            onChange={(e) => { setDateRange(e.target.value); applyRange(e.target.value) }}
+            className="px-3 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+          >
+            {DATE_RANGE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {dateRange === 'custom' && (
+            <>
+              <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="px-2 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
+              <span className="text-[#6B7280] dark:text-[#94A3B8] text-sm">to</span>
+              <input type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); if (customFrom) applyRange('custom', customFrom, e.target.value) }} className="px-2 py-2 text-sm border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#0F172A] text-[#111827] dark:text-[#F1F5F9] focus:outline-none focus:ring-2 focus:ring-[#2563EB]" />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -177,7 +154,7 @@ export default function ClientCommissionPage({
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-[#F3F4F6] dark:bg-[#0F172A] rounded-lg p-1 w-fit">
-        {(['months', 'batches'] as const).map(t => (
+        {(['unpaid', 'paid'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -187,187 +164,70 @@ export default function ClientCommissionPage({
                 : 'text-[#6B7280] dark:text-[#94A3B8] hover:text-[#111827] dark:hover:text-[#F1F5F9]'
             }`}
           >
-            {t === 'months' ? 'By Month' : 'Reconciled Batches'}
+            {t === 'unpaid' ? `Unpaid${unpaid.length > 0 ? ` (${unpaid.length})` : ''}` : `Paid${paid.length > 0 ? ` (${paid.length})` : ''}`}
           </button>
         ))}
       </div>
 
-      {/* By Month tab */}
-      {tab === 'months' && (
-        loading ? (
-          <div className="text-sm text-[#6B7280] dark:text-[#94A3B8] py-8 text-center">Loading…</div>
-        ) : months.length === 0 ? (
-          <div className="text-center py-16 text-[#6B7280] dark:text-[#94A3B8]">
-            <p className="text-lg font-medium">No completed jobs in this period.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {months.map(month => (
-              <div key={month.monthKey} className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
-                <div className="flex items-center gap-4 p-5">
-                  <button onClick={() => setExpanded(prev => { const next = new Set(prev); next.has(month.monthKey) ? next.delete(month.monthKey) : next.add(month.monthKey); return next })} className="flex-1 text-left">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-bold text-[#111827] dark:text-[#F1F5F9]">{month.label}</h3>
-                      <span className="text-[#6B7280] dark:text-[#94A3B8] text-sm">{expanded.has(month.monthKey) ? '▲' : '▼'}</span>
-                    </div>
-                    <div className="flex gap-4 mt-1 text-sm text-[#6B7280] dark:text-[#94A3B8]">
-                      <span>{month.jobCount} jobs</span>
-                      <span>Margin: <span className="font-semibold text-[#16A34A]">{fmt(month.totalGrossMarkup)}</span></span>
-                      <span className="text-[#9CA3AF]">incl. GST: {fmt(month.totalGrossMarkup * 1.15)}</span>
-                    </div>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setInvoiceMonth(month)}
-                      className="px-3 py-1.5 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors"
-                    >
-                      Generate Invoice
-                    </button>
-                  </div>
-                </div>
-
-                {expanded.has(month.monthKey) && (
-                  <div className="border-t border-[#E5E7EB] dark:border-[#334155] overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-[#F9FAFB] dark:bg-[#0F172A]">
-                          <th className="text-left px-4 py-2 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Quote #</th>
-                          <th className="text-left px-4 py-2 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Customer</th>
-                          <th className="text-left px-4 py-2 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Address</th>
-                          <th className="text-right px-4 py-2 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Margin (ex GST)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {month.leads.map(lead => (
-                          <tr
-                            key={lead.quoteNumber}
-                            onClick={() => router.push(`/leads/${lead.quoteNumber}?from=commission`)}
-                            className="border-t border-[#F3F4F6] dark:border-[#1E293B] hover:bg-[#F0F7FF] dark:hover:bg-[#1e3a5f]/30 transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-2 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">{lead.quoteNumber}</td>
-                            <td className="px-4 py-2 text-[#111827] dark:text-[#F1F5F9]">{lead.customerName}</td>
-                            <td className="px-4 py-2 text-[#6B7280] dark:text-[#94A3B8] max-w-48 truncate">{lead.propertyAddress}</td>
-                            <td className="px-4 py-2 text-right font-semibold text-[#16A34A]">{fmt(lead.grossMarkup)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )
-      )}
-
-      {/* Reconciled Batches tab */}
-      {tab === 'batches' && (
-        loadingBatches ? (
-          <div className="text-sm text-[#6B7280] dark:text-[#94A3B8] py-8 text-center">Loading…</div>
-        ) : (
-          <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
-            {batches.length === 0 ? (
-              <div className="text-center py-16 text-[#6B7280] dark:text-[#94A3B8]">
-                <p className="text-lg font-medium mb-1">No reconciled batches yet.</p>
-                <p className="text-sm">Batches appear here once Omniside reconciles your jobs.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[#E5E7EB] dark:border-[#334155]">
-                      <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Batch</th>
-                      <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Date Reconciled</th>
-                      <th className="text-center px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Jobs</th>
-                      <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Margin (ex GST)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {batches.map(batch => (
-                      <tr key={batch.id} className="border-b border-[#F3F4F6] dark:border-[#0F172A]">
-                        <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{batch.label}</td>
-                        <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8]">
-                          {batch.reconciledAt
-                            ? new Date(batch.reconciledAt).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' })
-                            : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-center text-[#111827] dark:text-[#F1F5F9]">{batch.totalJobs}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-[#16A34A]">{fmt(batch.totalGrossMarkup)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )
-      )}
-
-      {/* Generate Invoice (print) modal */}
-      {invoiceMonth && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 no-print" onClick={() => setInvoiceMonth(null)} />
-          <div className="relative bg-white dark:bg-[#1E293B] rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10">
-            <div id="client-invoice-content" className="p-8 font-mono text-sm">
-              <div className="border-b-2 border-[#111827] dark:border-[#F1F5F9] pb-4 mb-4">
-                <h1 className="text-xl font-bold text-[#111827] dark:text-[#F1F5F9] mb-1">INVOICE</h1>
-              </div>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[#111827] dark:text-[#F1F5F9] mb-6">
-                <dt className="text-[#6B7280] dark:text-[#94A3B8]">From:</dt>
-                <dd>{clientCompanyName}</dd>
-                <dt className="text-[#6B7280] dark:text-[#94A3B8]">To:</dt>
-                <dd>{subcontractorCompanyName}</dd>
-                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Date:</dt>
-                <dd>{formatDate(new Date())}</dd>
-                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Period:</dt>
-                <dd>{invoiceMonth.label}</dd>
-              </dl>
-
-              <div className="border-t border-[#E5E7EB] dark:border-[#334155] pt-4 mb-4">
-                <div className="grid grid-cols-[auto_1fr_auto] gap-x-6 text-xs text-[#6B7280] dark:text-[#94A3B8] mb-2 font-bold uppercase">
-                  <span>Quote #</span>
-                  <span>Customer Name</span>
-                  <span>Margin (ex GST)</span>
-                </div>
-                {invoiceMonth.leads.map(lead => (
-                  <div key={lead.quoteNumber} className="grid grid-cols-[auto_1fr_auto] gap-x-6 text-sm py-1 border-b border-[#F3F4F6] dark:border-[#1E293B]">
-                    <span className="text-[#374151] dark:text-[#CBD5E1]">{lead.quoteNumber}</span>
-                    <span className="text-[#111827] dark:text-[#F1F5F9] truncate">{lead.customerName}</span>
-                    <span className="font-semibold text-[#16A34A]">{fmt(lead.grossMarkup)}</span>
-                  </div>
+      {/* Table */}
+      {loading ? (
+        <div className="text-sm text-[#6B7280] dark:text-[#94A3B8] py-8 text-center">Loading…</div>
+      ) : shown.length === 0 ? (
+        <div className="text-center py-16 text-[#6B7280] dark:text-[#94A3B8]">
+          <p className="text-lg font-medium">
+            {tab === 'unpaid' ? 'No unpaid invoices.' : 'No paid invoices yet.'}
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-[#F9FAFB] dark:bg-[#0F172A] border-b border-[#E5E7EB] dark:border-[#334155]">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Quote #</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Customer</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Margin (ex GST)</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Sent</th>
+                  <th className="text-center px-4 py-3 text-xs font-medium text-[#6B7280] dark:text-[#94A3B8] uppercase">Paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map(lead => (
+                  <tr
+                    key={lead.quoteNumber}
+                    onClick={() => router.push(`/leads/${lead.quoteNumber}?from=commission`)}
+                    className="border-t border-[#F3F4F6] dark:border-[#1E293B] hover:bg-[#F0F7FF] dark:hover:bg-[#1e3a5f]/30 transition-colors cursor-pointer"
+                  >
+                    <td className="px-4 py-3 font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">{lead.quoteNumber}</td>
+                    <td className="px-4 py-3 text-[#111827] dark:text-[#F1F5F9]">{lead.customerName}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-[#16A34A]">{fmt(lead.grossMarkup)}</td>
+                    <td className="px-4 py-3 text-center">
+                      {lead.isSent
+                        ? <span className="text-xs text-[#16A34A]">{fmtDate(lead.sentAt) ?? 'Yes'}</span>
+                        : <span className="text-xs text-[#9CA3AF]">No</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {lead.isPaid
+                        ? <span className="text-xs text-[#16A34A]">{fmtDate(lead.paidAt) ?? 'Yes'}</span>
+                        : <span className="text-xs text-[#9CA3AF]">No</span>}
+                    </td>
+                  </tr>
                 ))}
-              </div>
-
-              <div className="border-t-2 border-[#111827] dark:border-[#F1F5F9] pt-4 space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#6B7280] dark:text-[#94A3B8]">Subtotal (ex GST):</span>
-                  <span className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(invoiceMonth.totalGrossMarkup)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#6B7280] dark:text-[#94A3B8]">GST (15%):</span>
-                  <span className="font-semibold text-[#111827] dark:text-[#F1F5F9]">{fmt(invoiceMonth.totalGrossMarkup * 0.15)}</span>
-                </div>
-                <div className="flex justify-between text-base font-bold border-t border-[#E5E7EB] dark:border-[#334155] pt-2 mt-1">
-                  <span className="text-[#111827] dark:text-[#F1F5F9]">Total (incl. GST):</span>
-                  <span className="text-[#16A34A]">{fmt(invoiceMonth.totalGrossMarkup * 1.15)}</span>
-                </div>
-              </div>
-
-              <p className="mt-8 text-xs text-[#6B7280] dark:text-[#94A3B8]">Jobbly by Omniside AI</p>
-            </div>
-
-            <div className="flex gap-3 justify-end px-8 pb-6 no-print">
-              <button onClick={() => window.print()} className="px-4 py-2 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors">
-                Print / Save as PDF
-              </button>
-              <button onClick={() => setInvoiceMonth(null)} className="px-4 py-2 text-sm font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg bg-white dark:bg-[#1E293B] text-[#374151] dark:text-[#CBD5E1] hover:bg-[#F3F4F6] dark:hover:bg-[#334155] transition-colors">
-                Close
-              </button>
-            </div>
+              </tbody>
+            </table>
           </div>
+          {tab === 'paid' && paid.length > 0 && (
+            <div className="border-t border-[#E5E7EB] dark:border-[#334155] px-4 py-3 flex justify-end gap-8">
+              <span className="text-xs text-[#6B7280] dark:text-[#94A3B8]">
+                Paid margin (ex GST): <span className="font-semibold text-[#16A34A]">{fmt(paidMarkup)}</span>
+              </span>
+              <span className="text-xs text-[#6B7280] dark:text-[#94A3B8]">
+                incl. GST: <span className="font-semibold text-[#16A34A]">{fmt(paidMarkup * 1.15)}</span>
+              </span>
+            </div>
+          )}
         </div>
       )}
-
     </>
   )
 }

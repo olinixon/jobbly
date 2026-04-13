@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       email: true,
       role: true,
       campaignId: true,
+      invoice_auto_send: true,
     },
   })
 
@@ -43,51 +44,63 @@ export async function GET(request: NextRequest) {
 
     try {
       if (user.role === 'ADMIN') {
-        // Count unreconciled jobs (completed leads not in any batch)
-        const unreconciledCount = await prisma.lead.count({
-          where: {
-            campaignId: user.campaignId,
-            status: 'JOB_COMPLETED',
-            reconciliationBatchId: null,
-          },
-        })
-
         const campaign = await prisma.campaign.findUnique({
           where: { id: user.campaignId },
           select: { name: true },
         })
 
-        await sendAdminInvoiceReminder({
-          to: user.email,
-          name: user.name,
-          campaignName: campaign?.name ?? user.campaignId,
-          unreconciledCount,
-        })
-        sent++
+        if (user.invoice_auto_send) {
+          // Auto-send mode: trigger invoice send automatically
+          // TODO: wire up Stripe invoice creation here when auto-send is implemented
+          // For now, log and skip — auto-send infrastructure to follow
+          console.log(`[invoice-reminders] Auto-send triggered for ${user.email} (campaign: ${campaign?.name})`)
+        } else {
+          // Manual mode: send reminder email
+          const unreconciledCount = await prisma.lead.count({
+            where: {
+              campaignId: user.campaignId,
+              status: 'JOB_COMPLETED',
+              reconciliationBatchId: null,
+            },
+          })
+
+          await sendAdminInvoiceReminder({
+            to: user.email,
+            name: user.name,
+            campaignName: campaign?.name ?? user.campaignId,
+            unreconciledCount,
+          })
+          sent++
+        }
       } else if (user.role === 'CLIENT') {
-        // Count reconciled batches with no client invoice sent
-        const unsentBatchCount = await prisma.reconciliationBatch.count({
-          where: {
-            campaignId: user.campaignId,
-            client_stripe_invoice_id: null,
-          },
-        })
-
         const campaign = await prisma.campaign.findUnique({
           where: { id: user.campaignId },
           select: { name: true },
         })
 
-        await sendClientInvoiceReminder({
-          to: user.email,
-          name: user.name,
-          campaignName: campaign?.name ?? user.campaignId,
-          unsentBatchCount,
-        })
-        sent++
+        if (user.invoice_auto_send) {
+          // Auto-send mode: trigger invoice send automatically
+          console.log(`[invoice-reminders] Auto-send triggered for ${user.email} (campaign: ${campaign?.name})`)
+        } else {
+          // Manual mode: send reminder email
+          const unsentBatchCount = await prisma.reconciliationBatch.count({
+            where: {
+              campaignId: user.campaignId,
+              client_stripe_invoice_id: null,
+            },
+          })
+
+          await sendClientInvoiceReminder({
+            to: user.email,
+            name: user.name,
+            campaignName: campaign?.name ?? user.campaignId,
+            unsentBatchCount,
+          })
+          sent++
+        }
       }
     } catch (err) {
-      console.error(`[invoice-reminders] Failed to send reminder to ${user.email}:`, err)
+      console.error(`[invoice-reminders] Failed to process reminder for ${user.email}:`, err)
     }
   }
 

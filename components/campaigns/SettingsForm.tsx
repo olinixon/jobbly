@@ -6,9 +6,6 @@ import Input from '@/components/ui/Input'
 import Button from '@/components/ui/Button'
 import Select from '@/components/ui/Select'
 import Modal from '@/components/ui/Modal'
-import JobTypesSection from '@/components/campaigns/JobTypesSection'
-import AvailabilitySection from '@/components/campaigns/AvailabilitySection'
-
 interface Campaign {
   id: string
   name: string
@@ -24,24 +21,7 @@ interface Campaign {
   customer_from_name?: string | null
 }
 
-interface JobType {
-  id: string
-  name: string
-  durationMinutes: number
-  sortOrder: number
-}
-
-interface AvailabilitySlot {
-  id: string
-  date: string
-  startTime: string
-  endTime: string
-  notes: string | null
-  createdAt: string
-  confirmedBookings: number
-}
-
-export default function SettingsForm({ campaign, jobTypes, availabilitySlots }: { campaign: Campaign; jobTypes: JobType[]; availabilitySlots: AvailabilitySlot[] }) {
+export default function SettingsForm({ campaign }: { campaign: Campaign }) {
   const router = useRouter()
   const [saving, setSaving] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -223,11 +203,6 @@ export default function SettingsForm({ campaign, jobTypes, availabilitySlots }: 
         </div>
       </section>
 
-      {/* Section 5a: Job Types */}
-      <JobTypesSection campaignId={campaign.id} initialJobTypes={jobTypes} />
-
-      {/* Section 5b: Booking Availability */}
-      <AvailabilitySection campaignId={campaign.id} initialSlots={availabilitySlots} jobTypes={jobTypes} />
     </div>
     </>
   )

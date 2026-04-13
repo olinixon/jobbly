@@ -46,6 +46,7 @@ model User {
   notifyNewLead                Boolean   @default(true)
   notifyJobCompleted           Boolean   @default(true)
   invoice_reminder_day         Int?      // day of month (1–28) to receive reminder email; null = no reminder
+  invoice_auto_send            Boolean   @default(false) // if true, auto-send invoice on reminder day instead of emailing admin
   notify_payment_reminder      Boolean   @default(true)  // ADMIN only — send Day 5 customer payment reminder
   notify_payment_overdue       Boolean   @default(true)  // ADMIN only — send Day 7 overdue alert to Oli
   createdAt             DateTime  @default(now())
