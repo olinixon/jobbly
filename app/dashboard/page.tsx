@@ -3,13 +3,15 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import AppShell from '@/components/layout/AppShell'
 import PageHeader from '@/components/layout/PageHeader'
-import { StatCard } from '@/components/ui/Card'
 import EmptyState from '@/components/ui/EmptyState'
 import LeadsTable from '@/components/leads/LeadsTable'
 import DashboardFilters from '@/components/dashboard/DashboardFilters'
 import DashboardExportButton from '@/components/dashboard/DashboardExportButton'
 import AddLeadModal from '@/components/dashboard/AddLeadModal'
 import CallStatCards from '@/components/dashboard/CallStatCards'
+import PipelineStatCards from '@/components/dashboard/PipelineStatCards'
+import FinancialsStatCards from '@/components/dashboard/FinancialsStatCards'
+import SubcontractorStatCards from '@/components/dashboard/SubcontractorStatCards'
 import Link from 'next/link'
 import { computeUrgency } from '@/lib/urgency'
 
@@ -270,42 +272,40 @@ export default async function DashboardPage({
       {/* Stat cards */}
       {(isAdmin || isClient) ? (
         <div className="mb-8 space-y-6">
-          {/* Row 1 — Call Activity */}
-          <div>
-            <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-2">Call Activity</p>
-            <CallStatCards from={callStatsRange.from} to={callStatsRange.to} />
-          </div>
+          {/* Row 1 — Call Activity (label + refresh button rendered inside component) */}
+          <CallStatCards from={callStatsRange.from} to={callStatsRange.to} />
 
           {/* Row 2 — Pipeline */}
-          <div>
-            <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-2">Pipeline</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              <StatCard label="Total Leads" value={totalLeads} />
-              <StatCard label="Quotes Sent" value={quotesSent} />
-              <StatCard label="Jobs Booked" value={jobsBooked} />
-              <StatCard label="Jobs Completed" value={jobsCompleted} />
-            </div>
-          </div>
+          <PipelineStatCards
+            key={`pipeline-${campaignId}-${dateRange}-${fromParam}-${toParam}`}
+            initialStats={{ totalLeads, quotesSent, jobsBooked, jobsCompleted }}
+            campaignId={campaignId ?? ''}
+            dateRange={dateRange}
+            from={fromParam}
+            to={toParam}
+          />
 
           {/* Row 3 — Financials */}
-          <div>
-            <p className="text-xs text-[#6B7280] dark:text-[#94A3B8] uppercase tracking-wide mb-2">Financials</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              <StatCard label="Total Billed to Customers (ex GST)" value={`$${totalCustomerRevenue.toFixed(2)}`} />
-              <StatCard label="Our Margin (ex GST)" value={`$${campaignRevenue.toFixed(2)}`} />
-              {isAdmin && <StatCard label="Commission Received (ex GST)" value={`$${commissionEarned.toFixed(2)}`} />}
-              {isAdmin && <StatCard label="Commission Owed to Me (ex GST)" value={`$${commissionPending.toFixed(2)}`} />}
-            </div>
-          </div>
+          <FinancialsStatCards
+            key={`financials-${campaignId}-${dateRange}-${fromParam}-${toParam}`}
+            initialStats={{ totalCustomerRevenue, campaignRevenue, commissionEarned, commissionPending }}
+            isAdmin={isAdmin}
+            campaignId={campaignId ?? ''}
+            dateRange={dateRange}
+            from={fromParam}
+            to={toParam}
+          />
         </div>
       ) : (
         /* Subcontractor view — Quotes Sent removed CL16 */
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Total Leads" value={totalLeads} />
-          <StatCard label="Jobs Booked" value={jobsBooked} />
-          <StatCard label="Jobs Completed" value={jobsCompleted} />
-          <StatCard label="Total Jobs Revenue (ex GST)" value={`$${totalJobsRevenue.toFixed(2)}`} />
-        </div>
+        <SubcontractorStatCards
+          key={`sub-${campaignId}-${dateRange}-${fromParam}-${toParam}`}
+          initialStats={{ totalLeads, jobsBooked, jobsCompleted, totalJobsRevenue }}
+          campaignId={campaignId ?? ''}
+          dateRange={dateRange}
+          from={fromParam}
+          to={toParam}
+        />
       )}
 
       {/* Filters */}
