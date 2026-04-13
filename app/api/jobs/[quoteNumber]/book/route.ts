@@ -15,7 +15,7 @@ export async function PATCH(
   const lead = await prisma.lead.findUnique({ where: { quoteNumber } })
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (lead.campaignId !== session.user.campaignId) {
+  if (lead.campaignId !== session.user.campaignId && session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
