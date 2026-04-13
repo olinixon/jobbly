@@ -176,6 +176,71 @@ export async function POST(
     console.warn(`[Payment] No verified payment platform for campaign ${lead.campaignId}`)
   }
 
+  // Fallback: if no CustomerPaymentProfile payment was created, try CLIENT BillingProfile
+  if (!stripeCustomerPaymentUrl && !myobInvoiceUrl) {
+    try {
+      const billingProfile = await prisma.billingProfile.findFirst({
+        where: {
+          campaign_id: lead.campaignId,
+          role: 'CLIENT',
+          stripe_verified: true,
+        },
+      });
+
+      if (billingProfile?.stripe_secret_key && lead.customerPrice != null) {
+        // Import Stripe and decrypt the key — do NOT call createCustomerPaymentCheckout
+        // that utility reads from CustomerPaymentProfile which doesn't exist here
+        const { decrypt } = await import('@/lib/encryption');
+        const Stripe = (await import('stripe')).default;
+
+        const secretKey = decrypt(billingProfile.stripe_secret_key);
+        const stripe = new Stripe(secretKey);
+
+        // customer_price is ex-GST — multiply by 1.15 for GST-inclusive checkout amount
+        const amountInclGst = Math.round(lead.customerPrice * 1.15 * 100); // in cents
+
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [{
+            price_data: {
+              currency: 'nzd',
+              product_data: {
+                name: `Gutter Clean — ${lead.propertyAddress}`,
+                description: `Invoice ref: ${lead.quoteNumber}`,
+              },
+              unit_amount: amountInclGst,
+            },
+            quantity: 1,
+          }],
+          mode: 'payment',
+          customer_email: lead.customerEmail ?? undefined,
+          client_reference_id: customerPortalToken,
+          success_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${customerPortalToken}?paid=true`,
+          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${customerPortalToken}`,
+          expires_at: Math.floor(Date.now() / 1000) + 86400,
+        });
+
+        stripeCustomerPaymentUrl = session.url;
+
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: { stripe_customer_payment_url: stripeCustomerPaymentUrl },
+        });
+
+        console.log(`[Payment] BillingProfile fallback used for ${lead.quoteNumber}`);
+      }
+    } catch (error) {
+      // Do not throw — job completion must succeed regardless
+      console.error(`[Payment] BillingProfile fallback failed for ${lead.quoteNumber}:`, error);
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          notes: `${lead.notes ?? ''}\n[Payment Fallback Error — ${new Date().toISOString()}] ${String(error)}`.trim(),
+        },
+      });
+    }
+  }
+
   // Save payment fields to lead — do NOT write to stripeCheckoutUrl (legacy field only)
   await prisma.lead.update({
     where: { id: lead.id },
