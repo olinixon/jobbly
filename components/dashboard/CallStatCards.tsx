@@ -79,17 +79,17 @@ export default function CallStatCards({ from, to }: CallStatCardsProps) {
   }
 
   const cards = [
-    { label: 'Total Calls', value: stats.totalCalls, icon: '📞' },
-    { label: 'Answered', value: stats.answered, icon: '✅' },
-    { label: 'Not Interested', value: stats.notInterested, icon: '👎' },
-    { label: 'Transfer Attempted', value: stats.transferAttempted, icon: '↗️' },
+    { label: 'Total Calls', value: stats.totalCalls },
+    { label: 'Answered', value: stats.answered },
+    { label: 'Not Interested', value: stats.notInterested },
+    { label: 'Transfer Attempted', value: stats.transferAttempted },
   ]
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       {cards.map(card => (
         <div key={card.label} className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-5 shadow-sm">
-          <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">{card.icon} {card.label}</p>
+          <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">{card.label}</p>
           <p className="mt-1 text-2xl font-semibold text-[#111827] dark:text-[#F1F5F9]">{card.value}</p>
         </div>
       ))}
