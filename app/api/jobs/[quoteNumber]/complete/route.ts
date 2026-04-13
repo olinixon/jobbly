@@ -27,7 +27,7 @@ export async function POST(
     include: { campaign: { select: { id: true, clientCompanyName: true } } },
   })
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
-  if (lead.campaignId !== session.user.campaignId) {
+  if (lead.campaignId !== session.user.campaignId && session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   if (lead.status !== 'JOB_BOOKED') {
