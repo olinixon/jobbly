@@ -14,9 +14,10 @@ export async function POST(_request: NextRequest) {
 
   // Soft delete — do NOT delete the row. Set verified = false and null MYOB tokens.
   await prisma.customerPaymentProfile.updateMany({
-    where: { campaign_id: campaignId, provider: 'MYOB' },
+    where: { user_id: session.user.id, provider: 'MYOB' },
     data: {
       verified: false,
+      is_active: false,
       myob_access_token: null,
       myob_refresh_token: null,
       myob_token_expiry: null,

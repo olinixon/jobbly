@@ -41,10 +41,10 @@ export async function POST(
       (Date.now() - new Date(referenceDate).getTime()) > 23 * 60 * 60 * 1000
 
     if (isLikelyExpired) {
-      const paymentProfile = await prisma.customerPaymentProfile.findUnique({
-        where: { campaign_id: lead.campaignId },
+      const paymentProfile = await prisma.customerPaymentProfile.findFirst({
+        where: { campaign_id: lead.campaignId, is_active: true, verified: true },
       })
-      if (paymentProfile?.stripe_secret_key && paymentProfile.verified) {
+      if (paymentProfile?.stripe_secret_key) {
         try {
           // customer_price is ex-GST — multiply by 1.15, or use AI-extracted total
           const amountInclGst = lead.invoiceTotalGstInclusive ??

@@ -36,8 +36,8 @@ export default async function ClientSettingsPage({
         stripe_webhook_secret: true,
       },
     }),
-    prisma.customerPaymentProfile.findUnique({
-      where: { campaign_id: campaignId },
+    prisma.customerPaymentProfile.findFirst({
+      where: { user_id: session.user.id },
       select: {
         provider: true,
         verified: true,

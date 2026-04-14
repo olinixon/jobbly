@@ -22,6 +22,7 @@ export default async function UsersPage() {
         lastLoginAt: true,
         createdAt: true,
         campaign: { select: { name: true } },
+        customer_payment_profile: { select: { id: true, is_active: true, verified: true } },
       },
       orderBy: { createdAt: 'desc' },
     }),

@@ -5,10 +5,10 @@ export async function checkMyobInvoiceStatus(
   campaignId: string,
   myobInvoiceId: string
 ): Promise<{ isPaid: boolean }> {
-  const profile = await prisma.customerPaymentProfile.findUnique({
-    where: { campaign_id: campaignId },
+  const profile = await prisma.customerPaymentProfile.findFirst({
+    where: { campaign_id: campaignId, is_active: true, verified: true },
   });
-  if (!profile?.myob_company_file_id || !profile.verified) {
+  if (!profile?.myob_company_file_id) {
     throw new Error('MYOB profile not found or not verified');
   }
 

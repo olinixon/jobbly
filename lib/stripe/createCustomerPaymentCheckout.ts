@@ -16,10 +16,10 @@ export async function createCustomerPaymentCheckout(params: {
 }) {
   const { campaignId, quoteNumber, propertyAddress, customerEmail, amountInclGst, portalToken } = params;
 
-  const profile = await prisma.customerPaymentProfile.findUnique({
-    where: { campaign_id: campaignId },
+  const profile = await prisma.customerPaymentProfile.findFirst({
+    where: { campaign_id: campaignId, is_active: true, verified: true },
   });
-  if (!profile?.stripe_secret_key || !profile.verified) throw new Error('Stripe not connected');
+  if (!profile?.stripe_secret_key) throw new Error('Stripe not connected');
 
   const secretKey = decrypt(profile.stripe_secret_key);
   const stripe = new Stripe(secretKey);

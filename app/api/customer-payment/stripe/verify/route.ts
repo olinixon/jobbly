@@ -35,12 +35,20 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Upsert CustomerPaymentProfile
+  // Only auto-activate if no other profile is already active for this campaign
+  const existingActive = await prisma.customerPaymentProfile.findFirst({
+    where: { campaign_id: campaignId, is_active: true },
+  })
+  const shouldSetActive = !existingActive
+
+  // Upsert CustomerPaymentProfile by user_id — one profile per user
   // Switching to Stripe clears all MYOB fields — only one platform active at a time
   await prisma.customerPaymentProfile.upsert({
-    where: { campaign_id: campaignId },
+    where: { user_id: session.user.id },
     create: {
       campaign_id: campaignId,
+      user_id: session.user.id,
+      is_active: shouldSetActive,
       provider: 'STRIPE',
       stripe_secret_key: encrypt(stripe_secret_key),
       verified: true,

@@ -13,11 +13,11 @@ export async function POST(_request: NextRequest) {
   const campaignId = session.user.campaignId
   if (!campaignId) return NextResponse.json({ error: 'No campaign' }, { status: 400 })
 
-  const profile = await prisma.customerPaymentProfile.findUnique({
-    where: { campaign_id: campaignId },
+  const profile = await prisma.customerPaymentProfile.findFirst({
+    where: { user_id: session.user.id, provider: 'MYOB', verified: true },
   })
 
-  if (!profile || profile.provider !== 'MYOB' || !profile.verified) {
+  if (!profile) {
     return NextResponse.json({ status: 'not_connected' }, { status: 400 })
   }
 

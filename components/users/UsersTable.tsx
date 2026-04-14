@@ -19,6 +19,7 @@ interface User {
   lastLoginAt: Date | null
   createdAt: Date
   campaign: { name: string } | null
+  customer_payment_profile: { id: string; is_active: boolean; verified: boolean } | null
 }
 
 interface Campaign {
@@ -48,6 +49,8 @@ export default function UsersTable({ users, campaigns, currentUserId }: UsersTab
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState<{ msg: string; warn?: boolean } | null>(null)
+  const [invoicingActive, setInvoicingActive] = useState(false)
+  const [invoicingLoading, setInvoicingLoading] = useState(false)
 
   function showToast(msg: string, warn = false) {
     setToast({ msg, warn })
@@ -69,8 +72,27 @@ export default function UsersTable({ users, campaigns, currentUserId }: UsersTab
   function openEdit(user: User) {
     setEditUser(user)
     setForm({ name: user.name, email: user.email, password: '', role: user.role, campaignId: user.campaignId ?? '' })
+    setInvoicingActive(user.customer_payment_profile?.is_active ?? false)
     setError('')
     setShowModal(true)
+  }
+
+  async function toggleInvoicing(userId: string, active: boolean) {
+    setInvoicingLoading(true)
+    const res = await fetch(`/api/users/${userId}/active-invoicing`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active }),
+    })
+    const data = await res.json()
+    setInvoicingLoading(false)
+    if (!res.ok) {
+      setError(data.error ?? 'Failed to update invoicing status.')
+      return
+    }
+    setInvoicingActive(active)
+    if (data.warning) showToast(data.warning, true)
+    router.refresh()
   }
 
   async function save() {
@@ -148,7 +170,14 @@ export default function UsersTable({ users, campaigns, currentUserId }: UsersTab
             <tbody>
               {users.map((user) => (
                 <tr key={user.id} className="border-b border-[#F3F4F6] dark:border-[#0F172A] hover:bg-[#F9FAFB] dark:hover:bg-[#0F172A] transition-colors">
-                  <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{user.name}</td>
+                  <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">
+                    <span className="flex items-center gap-2">
+                      {user.name}
+                      {user.role === 'CLIENT' && user.customer_payment_profile?.is_active && (
+                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-600 text-white">Active</span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8]">{user.email}</td>
                   <td className="px-4 py-3"><Badge status={user.role} type="role" /></td>
                   <td className="px-4 py-3 text-[#6B7280] dark:text-[#94A3B8] text-xs">{user.campaign?.name ?? '—'}</td>
@@ -213,6 +242,45 @@ export default function UsersTable({ users, campaigns, currentUserId }: UsersTab
                 onChange={(e) => setForm({ ...form, campaignId: e.target.value })}
                 options={campaignOptions}
               />
+            )}
+            {editUser && (form.role === 'CLIENT') && (
+              <div className="border-t border-[#E5E7EB] dark:border-[#334155] pt-4">
+                <p className="text-sm font-semibold text-[#374151] dark:text-[#CBD5E1] mb-3">Invoicing</p>
+                {editUser.customer_payment_profile ? (
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={invoicingActive}
+                      disabled={invoicingLoading}
+                      onClick={() => toggleInvoicing(editUser.id, !invoicingActive)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none mt-0.5 ${invoicingLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${invoicingActive ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                    >
+                      <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${invoicingActive ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
+                    <span className="text-sm">
+                      <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">Active invoicing account</span>
+                      <br />
+                      <span className="text-[#6B7280] dark:text-[#94A3B8] text-xs">This client&apos;s payment credentials will be used for all invoicing on this campaign.</span>
+                    </span>
+                  </label>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <button
+                      type="button"
+                      disabled
+                      className="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent bg-gray-200 dark:bg-gray-700 cursor-not-allowed opacity-50 mt-0.5"
+                    >
+                      <span className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 translate-x-0" />
+                    </button>
+                    <span className="text-sm">
+                      <span className="font-medium text-[#111827] dark:text-[#F1F5F9]">Active invoicing account</span>
+                      <br />
+                      <span className="text-[#9CA3AF] dark:text-[#475569] text-xs">This user has not connected a payment platform yet.</span>
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
             {error && <p className="text-sm text-[#DC2626]">{error}</p>}
             <div className="flex gap-3 justify-end pt-2">

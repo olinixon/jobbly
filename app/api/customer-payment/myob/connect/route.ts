@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest) {
   authUrl.searchParams.set('redirect_uri', process.env.MYOB_REDIRECT_URI!)
   authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('scope', 'CompanyFile')
-  authUrl.searchParams.set('state', campaignId) // pass campaignId through OAuth state
+  authUrl.searchParams.set('state', `${campaignId}:${session.user.id}`) // pass campaignId:userId through OAuth state
 
   return NextResponse.redirect(authUrl.toString())
 }

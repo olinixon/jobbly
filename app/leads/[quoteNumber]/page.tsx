@@ -88,8 +88,8 @@ export default async function LeadDetailPage({
 
   // Fetch CustomerPaymentProfile for payment platform diagnostic (admin only)
   const customerPaymentProfile = isAdmin
-    ? await prisma.customerPaymentProfile.findUnique({
-        where: { campaign_id: lead.campaignId },
+    ? await prisma.customerPaymentProfile.findFirst({
+        where: { campaign_id: lead.campaignId, is_active: true },
         select: { provider: true, verified: true },
       })
     : null

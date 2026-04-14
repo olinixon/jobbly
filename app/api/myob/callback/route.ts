@@ -8,8 +8,13 @@ import { encrypt } from '@/lib/encryption'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const campaignId = searchParams.get('state')
+  const state = searchParams.get('state') ?? ''
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
+  // State format: "campaignId:userId" (new) or "campaignId" (legacy fallback)
+  const stateParts = state.split(':')
+  const campaignId = stateParts[0] ?? ''
+  const userId = stateParts[1] ?? null
 
   if (!code || !campaignId) {
     console.error('[MYOB] Callback missing code or state:', { code: !!code, campaignId: !!campaignId })
@@ -74,33 +79,77 @@ export async function GET(request: NextRequest) {
   }
   console.log(`[MYOB] Using company file: ${companyFile.Name} (${companyFile.Id})`)
 
-  // Upsert CustomerPaymentProfile
-  // Switching to MYOB clears all Stripe fields — only one platform active at a time
-  await prisma.customerPaymentProfile.upsert({
-    where: { campaign_id: campaignId },
-    create: {
-      campaign_id: campaignId,
-      provider: 'MYOB',
-      myob_company_file_id: companyFile.Id,
-      myob_access_token: encrypt(accessToken),
-      myob_refresh_token: encrypt(refreshToken),
-      myob_token_expiry: new Date(Date.now() + expiresIn * 1000),
-      verified: true,
-      verified_at: new Date(),
-    },
-    update: {
-      provider: 'MYOB',
-      myob_company_file_id: companyFile.Id,
-      myob_access_token: encrypt(accessToken),
-      myob_refresh_token: encrypt(refreshToken),
-      myob_token_expiry: new Date(Date.now() + expiresIn * 1000),
-      verified: true,
-      verified_at: new Date(),
-      stripe_secret_key: null,
-      stripe_webhook_secret: null,
-      updated_at: new Date(),
-    },
+  // Only auto-activate if no other profile is already active for this campaign
+  const existingActive = await prisma.customerPaymentProfile.findFirst({
+    where: { campaign_id: campaignId, is_active: true },
   })
+  const shouldSetActive = !existingActive
+
+  // Upsert CustomerPaymentProfile — upsert by user_id if available, else create new
+  // Switching to MYOB clears all Stripe fields — only one platform active at a time
+  if (userId) {
+    await prisma.customerPaymentProfile.upsert({
+      where: { user_id: userId },
+      create: {
+        campaign_id: campaignId,
+        user_id: userId,
+        is_active: shouldSetActive,
+        provider: 'MYOB',
+        myob_company_file_id: companyFile.Id,
+        myob_access_token: encrypt(accessToken),
+        myob_refresh_token: encrypt(refreshToken),
+        myob_token_expiry: new Date(Date.now() + expiresIn * 1000),
+        verified: true,
+        verified_at: new Date(),
+      },
+      update: {
+        provider: 'MYOB',
+        myob_company_file_id: companyFile.Id,
+        myob_access_token: encrypt(accessToken),
+        myob_refresh_token: encrypt(refreshToken),
+        myob_token_expiry: new Date(Date.now() + expiresIn * 1000),
+        verified: true,
+        verified_at: new Date(),
+        stripe_secret_key: null,
+        stripe_webhook_secret: null,
+        updated_at: new Date(),
+      },
+    })
+  } else {
+    // Legacy fallback: no userId in state (old flow) — find existing by campaignId or create
+    const existing = await prisma.customerPaymentProfile.findFirst({ where: { campaign_id: campaignId } })
+    if (existing) {
+      await prisma.customerPaymentProfile.update({
+        where: { id: existing.id },
+        data: {
+          provider: 'MYOB',
+          myob_company_file_id: companyFile.Id,
+          myob_access_token: encrypt(accessToken),
+          myob_refresh_token: encrypt(refreshToken),
+          myob_token_expiry: new Date(Date.now() + expiresIn * 1000),
+          verified: true,
+          verified_at: new Date(),
+          stripe_secret_key: null,
+          stripe_webhook_secret: null,
+          updated_at: new Date(),
+        },
+      })
+    } else {
+      await prisma.customerPaymentProfile.create({
+        data: {
+          campaign_id: campaignId,
+          is_active: shouldSetActive,
+          provider: 'MYOB',
+          myob_company_file_id: companyFile.Id,
+          myob_access_token: encrypt(accessToken),
+          myob_refresh_token: encrypt(refreshToken),
+          myob_token_expiry: new Date(Date.now() + expiresIn * 1000),
+          verified: true,
+          verified_at: new Date(),
+        },
+      })
+    }
+  }
 
   return NextResponse.redirect(`${appUrl}/client/settings?payment=connected&provider=myob`)
 }

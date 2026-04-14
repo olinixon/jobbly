@@ -15,10 +15,10 @@ export async function createMyobInvoice(params: {
 }) {
   const { campaignId, quoteNumber, customerName, customerEmail, propertyAddress, amountExGst } = params;
 
-  const profile = await prisma.customerPaymentProfile.findUnique({
-    where: { campaign_id: campaignId },
+  const profile = await prisma.customerPaymentProfile.findFirst({
+    where: { campaign_id: campaignId, is_active: true, verified: true },
   });
-  if (!profile?.myob_company_file_id || !profile.verified) throw new Error('MYOB not connected');
+  if (!profile?.myob_company_file_id) throw new Error('MYOB not connected');
 
   const accessToken = await getMyobAccessToken(campaignId);
   const baseUrl = `https://api.myob.com/accountright/${profile.myob_company_file_id}`;

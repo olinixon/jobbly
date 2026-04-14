@@ -23,15 +23,15 @@ model Campaign {
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
 
-  users                    User[]
-  leads                    Lead[]
-  auditLogs                AuditLog[]
-  attachments              Attachment[]
-  reconciliationBatches    ReconciliationBatch[]
-  jobTypes                 JobType[]
-  availabilitySlots        AvailabilitySlot[]
-  billing_profiles         BillingProfile[]
-  customer_payment_profile CustomerPaymentProfile?
+  users                     User[]
+  leads                     Lead[]
+  auditLogs                 AuditLog[]
+  attachments               Attachment[]
+  reconciliationBatches     ReconciliationBatch[]
+  jobTypes                  JobType[]
+  availabilitySlots         AvailabilitySlot[]
+  billing_profiles          BillingProfile[]
+  customer_payment_profiles CustomerPaymentProfile[]
 }
 
 model User {
@@ -52,10 +52,11 @@ model User {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  campaign             Campaign?             @relation(fields: [campaignId], references: [id])
-  auditLogs            AuditLog[]
-  attachments          Attachment[]
-  passwordResetTokens  PasswordResetToken[]
+  campaign                  Campaign?             @relation(fields: [campaignId], references: [id])
+  auditLogs                 AuditLog[]
+  attachments               Attachment[]
+  passwordResetTokens       PasswordResetToken[]
+  customer_payment_profile  CustomerPaymentProfile?
 }
 
 model PasswordResetToken {
@@ -235,7 +236,9 @@ model Booking {
 
 model CustomerPaymentProfile {
   id          String    @id @default(cuid())
-  campaign_id String    @unique
+  campaign_id String                        // no longer @unique — multiple profiles per campaign allowed
+  user_id     String?   @unique             // which client user owns this profile
+  is_active   Boolean   @default(false)     // only one per campaign can be true at any time
   provider    String    // 'STRIPE' | 'MYOB' — string not enum for extensibility
 
   // Stripe fields (populated when provider = 'STRIPE', nulled when switching away)
@@ -255,6 +258,7 @@ model CustomerPaymentProfile {
   updated_at    DateTime  @updatedAt
 
   campaign      Campaign  @relation(fields: [campaign_id], references: [id])
+  user          User?     @relation(fields: [user_id], references: [id])
 }
 
 model BillingProfile {

@@ -94,15 +94,15 @@ export async function POST(
   })
 
   // ── Step 5: Create payment record on connected platform ──────────────────
-  const paymentProfile = await prisma.customerPaymentProfile.findUnique({
-    where: { campaign_id: lead.campaignId },
+  const paymentProfile = await prisma.customerPaymentProfile.findFirst({
+    where: { campaign_id: lead.campaignId, is_active: true, verified: true },
   })
 
   let myobInvoiceId: string | null = null
   let myobInvoiceUrl: string | null = null
   let stripeCustomerPaymentUrl: string | null = null
 
-  if (paymentProfile?.verified) {
+  if (paymentProfile) {
     try {
       if (paymentProfile.provider === 'MYOB') {
         const result = await createMyobInvoice({

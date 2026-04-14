@@ -14,9 +14,10 @@ export async function POST(_request: NextRequest) {
 
   // Soft delete — do NOT delete the row. Set verified = false and null Stripe tokens.
   await prisma.customerPaymentProfile.updateMany({
-    where: { campaign_id: campaignId, provider: 'STRIPE' },
+    where: { user_id: session.user.id, provider: 'STRIPE' },
     data: {
       verified: false,
+      is_active: false,
       stripe_secret_key: null,
       stripe_webhook_secret: null,
       updated_at: new Date(),

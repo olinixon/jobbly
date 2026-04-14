@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  await prisma.customerPaymentProfile.update({
-    where: { campaign_id: campaignId },
+  await prisma.customerPaymentProfile.updateMany({
+    where: { user_id: session.user.id },
     data: { stripe_webhook_secret: encrypt(webhook_secret), updated_at: new Date() },
   })
 

@@ -2,11 +2,11 @@ import { encrypt, decrypt } from '@/lib/encryption';
 import { prisma } from '@/lib/prisma';
 
 export async function getMyobAccessToken(campaignId: string): Promise<string> {
-  const profile = await prisma.customerPaymentProfile.findUnique({
-    where: { campaign_id: campaignId },
+  const profile = await prisma.customerPaymentProfile.findFirst({
+    where: { campaign_id: campaignId, is_active: true, verified: true },
   });
 
-  if (!profile || profile.provider !== 'MYOB' || !profile.verified) {
+  if (!profile || profile.provider !== 'MYOB') {
     throw new Error('MYOB not connected for this campaign');
   }
 
@@ -22,7 +22,7 @@ export async function getMyobAccessToken(campaignId: string): Promise<string> {
   // Token expired — refresh
   if (!profile.myob_refresh_token) {
     await prisma.customerPaymentProfile.update({
-      where: { campaign_id: campaignId },
+      where: { id: profile.id },
       data: { verified: false, updated_at: new Date() },
     });
     throw new Error('MYOB refresh token missing — reconnection required');
@@ -44,7 +44,7 @@ export async function getMyobAccessToken(campaignId: string): Promise<string> {
   if (!response.ok) {
     // Mark as unverified so the settings UI prompts reconnection
     await prisma.customerPaymentProfile.update({
-      where: { campaign_id: campaignId },
+      where: { id: profile.id },
       data: { verified: false, updated_at: new Date() },
     });
     throw new Error(`MYOB token refresh failed: ${response.status}`);
@@ -53,7 +53,7 @@ export async function getMyobAccessToken(campaignId: string): Promise<string> {
   const data = await response.json();
 
   await prisma.customerPaymentProfile.update({
-    where: { campaign_id: campaignId },
+    where: { id: profile.id },
     data: {
       myob_access_token: encrypt(data.access_token),
       myob_refresh_token: encrypt(data.refresh_token),
