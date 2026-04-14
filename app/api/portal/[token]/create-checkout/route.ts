@@ -4,10 +4,23 @@ import { getStripeClient } from '@/lib/stripeClient'
 import { createCustomerPaymentCheckout } from '@/lib/stripe/createCustomerPaymentCheckout'
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params
+
+  // Parse and validate paymentMethod from request body
+  let paymentMethod: 'card' | 'bank_transfer' = 'card'
+  try {
+    const body = await request.json().catch(() => ({}))
+    if (body.paymentMethod === 'bank_transfer') {
+      paymentMethod = 'bank_transfer'
+    } else if (body.paymentMethod && body.paymentMethod !== 'card') {
+      return NextResponse.json({ error: 'Invalid paymentMethod' }, { status: 400 })
+    }
+  } catch {
+    // empty body — default to 'card'
+  }
 
   const lead = await prisma.lead.findUnique({
     where: { customerPortalToken: token },
@@ -33,41 +46,37 @@ export async function POST(
     return NextResponse.json({ myobInvoiceUrl: lead.myob_invoice_url })
   }
 
-  // ── Guard 2: New Stripe path (stripe_customer_payment_url) ───────────────────
-  if (lead.stripe_customer_payment_url) {
-    // Check if session is likely expired (Stripe sessions expire after 24 hours)
-    const referenceDate = lead.myob_invoice_created_at ?? lead.jobCompletedAt
-    const isLikelyExpired = referenceDate &&
-      (Date.now() - new Date(referenceDate).getTime()) > 23 * 60 * 60 * 1000
+  const amountInclGst = lead.invoiceTotalGstInclusive ??
+    (lead.customerPrice != null ? lead.customerPrice * 1.15 : 0)
 
-    if (isLikelyExpired) {
-      const paymentProfile = await prisma.customerPaymentProfile.findFirst({
-        where: { campaign_id: lead.campaignId, is_active: true, verified: true },
+  // ── New Stripe path (CustomerPaymentProfile) ─────────────────────────────────
+  const paymentProfile = await prisma.customerPaymentProfile.findFirst({
+    where: { campaign_id: lead.campaignId, is_active: true, verified: true },
+  })
+
+  if (paymentProfile?.stripe_secret_key) {
+    try {
+      const result = await createCustomerPaymentCheckout({
+        campaignId: lead.campaignId,
+        quoteNumber: lead.quoteNumber,
+        propertyAddress: lead.propertyAddress,
+        customerEmail: lead.customerEmail ?? '',
+        amountInclGst,
+        portalToken: token,
+        paymentMethod,
       })
-      if (paymentProfile?.stripe_secret_key) {
-        try {
-          // customer_price is ex-GST — multiply by 1.15, or use AI-extracted total
-          const amountInclGst = lead.invoiceTotalGstInclusive ??
-            (lead.customerPrice != null ? lead.customerPrice * 1.15 : 0)
-          const result = await createCustomerPaymentCheckout({
-            campaignId: lead.campaignId,
-            quoteNumber: lead.quoteNumber,
-            propertyAddress: lead.propertyAddress,
-            customerEmail: lead.customerEmail ?? '',
-            amountInclGst,
-            portalToken: token,
-          })
-          await prisma.lead.update({
-            where: { customerPortalToken: token },
-            data: { stripe_customer_payment_url: result.checkoutUrl },
-          })
-          return NextResponse.json({ checkoutUrl: result.checkoutUrl })
-        } catch (error) {
-          console.error('[Portal] Stripe session refresh failed:', error)
-        }
-      }
+      await prisma.lead.update({
+        where: { customerPortalToken: token },
+        data: {
+          stripe_customer_payment_url: result.checkoutUrl,
+          customer_payment_method: paymentMethod,
+        },
+      })
+      return NextResponse.json({ checkoutUrl: result.checkoutUrl })
+    } catch (error) {
+      console.error('[Portal] Stripe session creation failed:', error)
+      return NextResponse.json({ checkoutUrl: null })
     }
-    return NextResponse.json({ checkoutUrl: lead.stripe_customer_payment_url })
   }
 
   // ── Legacy path: Stripe Checkout via CLIENT BillingProfile ───────────────────
@@ -167,7 +176,10 @@ export async function POST(
   const checkoutUrl = session.url!
   await prisma.lead.update({
     where: { id: lead.id },
-    data: { stripeCheckoutUrl: checkoutUrl },
+    data: {
+      stripeCheckoutUrl: checkoutUrl,
+      customer_payment_method: paymentMethod,
+    },
   })
 
   return NextResponse.json({ checkoutUrl })

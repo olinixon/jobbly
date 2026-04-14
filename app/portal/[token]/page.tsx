@@ -1,24 +1,7 @@
 import { prisma } from '@/lib/prisma'
+import PortalPaymentChoice from '@/components/portal/PortalPaymentChoice'
 
 export const dynamic = 'force-dynamic'
-
-async function getCheckoutUrl(token: string): Promise<{ checkoutUrl: string | null; myobInvoiceUrl: string | null }> {
-  try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-    const res = await fetch(`${appUrl}/api/portal/${token}/create-checkout`, {
-      method: 'POST',
-      cache: 'no-store',
-    })
-    if (!res.ok) return { checkoutUrl: null, myobInvoiceUrl: null }
-    const data = await res.json()
-    return {
-      checkoutUrl: data.checkoutUrl ?? null,
-      myobInvoiceUrl: data.myobInvoiceUrl ?? null,
-    }
-  } catch {
-    return { checkoutUrl: null, myobInvoiceUrl: null }
-  }
-}
 
 function isPdf(url: string): boolean {
   return url.toLowerCase().includes('.pdf')
@@ -48,6 +31,8 @@ export default async function CustomerPortalPage({
       myob_invoice_created_at: true,
       stripe_customer_payment_url: true,
       stripeCheckoutUrl: true,
+      customerPrice: true,
+      invoiceTotalGstInclusive: true,
     },
   })
 
@@ -103,18 +88,6 @@ export default async function CustomerPortalPage({
 
   // Priority 1 — customer_paid_at is the authoritative paid state (server-side)
   const alreadyPaid = !!lead.customer_paid_at || isPaid
-
-  // For unpaid leads, fetch payment info from create-checkout
-  // (handles new Stripe path expiry + legacy Stripe path)
-  let checkoutUrl: string | null = null
-  let resolvedMyobInvoiceUrl: string | null = lead.myob_invoice_url
-
-  if (!alreadyPaid) {
-    const result = await getCheckoutUrl(token)
-    checkoutUrl = result.checkoutUrl
-    // create-checkout may return myobInvoiceUrl directly if MYOB is the platform
-    if (result.myobInvoiceUrl) resolvedMyobInvoiceUrl = result.myobInvoiceUrl
-  }
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
@@ -250,10 +223,10 @@ export default async function CustomerPortalPage({
             </div>
 
           /* Priority 2 — MYOB invoice URL set */
-          ) : resolvedMyobInvoiceUrl ? (
+          ) : lead.myob_invoice_url ? (
             <div className="space-y-3">
               <a
-                href={resolvedMyobInvoiceUrl}
+                href={lead.myob_invoice_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full block text-center px-4 py-3 bg-[#2563EB] text-white font-semibold rounded-xl text-sm hover:bg-[#1D4ED8] transition-colors"
@@ -267,25 +240,15 @@ export default async function CustomerPortalPage({
               </p>
             </div>
 
-          /* Priority 3 — new Stripe path (stripe_customer_payment_url) */
-          ) : checkoutUrl && !lead.stripeCheckoutUrl ? (
-            <a
-              href={checkoutUrl}
-              className="w-full block text-center px-4 py-3 bg-[#2563EB] text-white font-semibold rounded-xl text-sm hover:bg-[#1D4ED8] transition-colors"
-            >
-              Pay Invoice
-            </a>
+          /* Priority 3 — Stripe payment choice (card or bank transfer) */
+          ) : (lead.customerPrice != null || lead.invoiceTotalGstInclusive != null) ? (
+            <PortalPaymentChoice
+              portalToken={token}
+              customerPrice={lead.customerPrice}
+              invoiceTotalGstInclusive={lead.invoiceTotalGstInclusive}
+            />
 
-          /* Priority 4 — legacy Stripe checkout — completely unchanged */
-          ) : checkoutUrl ? (
-            <a
-              href={checkoutUrl}
-              className="w-full block text-center px-4 py-3 bg-[#2563EB] text-white font-semibold rounded-xl text-sm hover:bg-[#1D4ED8] transition-colors"
-            >
-              Pay Invoice
-            </a>
-
-          /* Priority 5 — nothing */
+          /* Priority 4 — no amount info */
           ) : (
             <>
               <button
