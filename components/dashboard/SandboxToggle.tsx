@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 
 interface SandboxToggleProps {
   sandboxActive: boolean
+  campaignId: string
 }
 
-export default function SandboxToggle({ sandboxActive }: SandboxToggleProps) {
+export default function SandboxToggle({ sandboxActive, campaignId }: SandboxToggleProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [confirmDisable, setConfirmDisable] = useState(false)
@@ -15,7 +16,11 @@ export default function SandboxToggle({ sandboxActive }: SandboxToggleProps) {
   async function enableSandbox() {
     setLoading(true)
     try {
-      const res = await fetch('/api/sandbox/enable', { method: 'POST' })
+      const res = await fetch('/api/sandbox/enable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId }),
+      })
       if (res.ok) router.refresh()
     } finally {
       setLoading(false)
@@ -26,7 +31,11 @@ export default function SandboxToggle({ sandboxActive }: SandboxToggleProps) {
     setLoading(true)
     setConfirmDisable(false)
     try {
-      const res = await fetch('/api/sandbox/disable', { method: 'POST' })
+      const res = await fetch('/api/sandbox/disable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId }),
+      })
       if (res.ok) router.refresh()
     } finally {
       setLoading(false)

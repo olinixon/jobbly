@@ -4,15 +4,20 @@ import { prisma } from '@/lib/prisma'
 import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
 import { generateQuoteNumber } from '@/lib/generateQuoteNumber'
 import { generateMapsUrl } from '@/lib/generateMapsUrl'
+import { revalidatePath } from 'next/cache'
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
+  const body = await request.json().catch(() => ({}))
+  const campaignId: string | null =
+    (typeof body.campaignId === 'string' && body.campaignId)
+      ? body.campaignId
+      : await getActiveCampaignId(session.user.campaignId, session.user.role)
   if (!campaignId) return NextResponse.json({ error: 'No active campaign' }, { status: 400 })
 
   // Hard-delete any existing test leads — cascade related records first
@@ -62,5 +67,6 @@ export async function POST(_request: NextRequest) {
     data: { sandbox_active: true },
   })
 
+  revalidatePath('/dashboard')
   return NextResponse.json({ success: true, lead: { quoteNumber: lead.quoteNumber } })
 }

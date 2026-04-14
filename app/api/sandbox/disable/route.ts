@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getActiveCampaignId } from '@/lib/getActiveCampaignId'
+import { revalidatePath } from 'next/cache'
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
+  const body = await request.json().catch(() => ({}))
+  const campaignId: string | null =
+    (typeof body.campaignId === 'string' && body.campaignId)
+      ? body.campaignId
+      : await getActiveCampaignId(session.user.campaignId, session.user.role)
   if (!campaignId) return NextResponse.json({ error: 'No active campaign' }, { status: 400 })
 
   // Find test lead IDs first — must cascade-delete related records before deleting the lead
@@ -31,5 +36,6 @@ export async function POST(_request: NextRequest) {
 
   await prisma.campaign.update({ where: { id: campaignId }, data: { sandbox_active: false } })
 
+  revalidatePath('/dashboard')
   return NextResponse.json({ success: true })
 }

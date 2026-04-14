@@ -271,7 +271,7 @@ export default async function DashboardPage({
         subtitle="Campaign overview"
         action={
           <div className="flex items-center gap-2">
-            {isAdmin && <SandboxToggle sandboxActive={sandboxActive} />}
+            {isAdmin && <SandboxToggle sandboxActive={sandboxActive} campaignId={campaignId ?? ''} />}
             {isAdmin && <AddLeadModal />}
             <DashboardExportButton stats={exportStats} dateLabel={dateLabel} />
           </div>
