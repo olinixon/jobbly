@@ -336,16 +336,36 @@ export default async function LeadDetailPage({
 
         {/* Right: Financials + Invoice + Audit + Actions */}
         <div className="space-y-6">
-          {/* Actions */}
-          {isAdmin && lead.status !== 'JOB_BOOKED' && (
+          {/* Actions — admin all statuses; subcontractor all statuses (upload quote) */}
+          {(isAdmin || session.user.role === 'SUBCONTRACTOR') && (
             <LeadActions
               quoteNumber={lead.quoteNumber}
               currentStatus={lead.status}
               hasInvoice={!!lead.invoiceUrl}
+              hasQuote={!!lead.quoteUrl}
               markupPercentage={lead.campaign.markupPercentage}
               customerName={lead.customerName}
               propertyAddress={lead.propertyAddress}
+              role={session.user.role}
             />
+          )}
+
+          {/* Quote download — all roles, shown when quote is uploaded */}
+          {lead.quoteUrl && (
+            <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 shadow-sm">
+              <h2 className="font-semibold text-[#111827] dark:text-[#F1F5F9] mb-3">Quote</h2>
+              <a
+                href={lead.quoteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-[#2563EB] dark:text-[#3B82F6] hover:underline"
+              >
+                Download quote →
+              </a>
+              {isAdmin && lead.quoteValidationOverridden && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">Validation overridden</p>
+              )}
+            </div>
           )}
 
           {/* Complete Job section — admin full access, client read-only */}

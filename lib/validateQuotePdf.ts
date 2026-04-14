@@ -10,11 +10,17 @@ export interface QuoteValidationResult {
 }
 
 export async function validateQuotePdf(
-  pdfBase64: string,
-  lead: { customer_name: string; property_address: string; quote_number: string }
+  fileBase64: string,
+  lead: { customer_name: string; property_address: string; quote_number: string },
+  mediaType: 'application/pdf' | 'image/jpeg' | 'image/png' = 'application/pdf'
 ): Promise<QuoteValidationResult> {
   try {
     const client = new Anthropic()
+
+    const fileContent = mediaType === 'application/pdf'
+      ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: fileBase64 } }
+      : { type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType as 'image/jpeg' | 'image/png', data: fileBase64 } }
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 256,
@@ -22,14 +28,7 @@ export async function validateQuotePdf(
         {
           role: 'user',
           content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: pdfBase64,
-              },
-            },
+            fileContent,
             {
               type: 'text',
               text: `You are validating that a quote PDF belongs to the correct customer and job.
