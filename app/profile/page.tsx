@@ -40,14 +40,18 @@ export default async function ProfilePage() {
               <dt className="text-[#6B7280] dark:text-[#94A3B8]">Email</dt>
               <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{session.user.email}</dd>
             </div>
-            <div className="flex justify-between items-center">
-              <dt className="text-[#6B7280] dark:text-[#94A3B8]">Role</dt>
-              <dd><Badge status={session.user.role} type="role" /></dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-[#6B7280] dark:text-[#94A3B8]">Campaign</dt>
-              <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{campaignName}</dd>
-            </div>
+            {session.user.role !== 'SUBCONTRACTOR' && (
+              <div className="flex justify-between items-center">
+                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Role</dt>
+                <dd><Badge status={session.user.role} type="role" /></dd>
+              </div>
+            )}
+            {session.user.role !== 'SUBCONTRACTOR' && (
+              <div className="flex justify-between">
+                <dt className="text-[#6B7280] dark:text-[#94A3B8]">Campaign</dt>
+                <dd className="font-medium text-[#111827] dark:text-[#F1F5F9]">{campaignName}</dd>
+              </div>
+            )}
           </dl>
         </div>
 
