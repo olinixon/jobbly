@@ -33,8 +33,18 @@ export default function SandboxToggle({ sandboxActive }: SandboxToggleProps) {
     }
   }
 
-  if (sandboxActive) {
-    return confirmDisable ? (
+  function handleToggleClick() {
+    if (loading) return
+    if (sandboxActive) {
+      setConfirmDisable(true)
+    } else {
+      enableSandbox()
+    }
+  }
+
+  // Inline confirmation when turning off
+  if (confirmDisable) {
+    return (
       <div className="flex items-center gap-2">
         <span className="text-xs text-[#6B7280] dark:text-[#94A3B8]">Delete test lead?</span>
         <button
@@ -42,7 +52,7 @@ export default function SandboxToggle({ sandboxActive }: SandboxToggleProps) {
           disabled={loading}
           className="px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Disabling…' : 'Yes, disable'}
+          {loading ? 'Turning off…' : 'Turn off'}
         </button>
         <button
           onClick={() => setConfirmDisable(false)}
@@ -52,24 +62,40 @@ export default function SandboxToggle({ sandboxActive }: SandboxToggleProps) {
           Cancel
         </button>
       </div>
-    ) : (
-      <button
-        onClick={() => setConfirmDisable(true)}
-        disabled={loading}
-        className="px-3 py-1.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 disabled:opacity-50 transition-colors"
-      >
-        Sandbox: On
-      </button>
     )
   }
 
   return (
     <button
-      onClick={enableSandbox}
+      role="switch"
+      aria-checked={sandboxActive}
+      onClick={handleToggleClick}
       disabled={loading}
-      className="px-3 py-1.5 text-xs font-medium border border-[#E5E7EB] dark:border-[#334155] rounded-lg hover:bg-[#F9FAFB] dark:hover:bg-[#0F172A] text-[#6B7280] dark:text-[#94A3B8] disabled:opacity-50 transition-colors"
+      className="flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+      title={sandboxActive ? 'Sandbox on — click to turn off' : 'Sandbox off — click to enable'}
     >
-      {loading ? 'Enabling…' : 'Sandbox: Off'}
+      {/* Track */}
+      <span
+        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${
+          sandboxActive ? 'bg-green-500' : 'bg-[#D1D5DB] dark:bg-[#4B5563]'
+        } ${loading ? 'opacity-60' : ''}`}
+      >
+        {/* Thumb */}
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 mt-0.5 ${
+            sandboxActive ? 'translate-x-[18px]' : 'translate-x-0.5'
+          }`}
+        />
+        {/* Loading spinner overlaid on thumb */}
+        {loading && (
+          <span className="absolute inset-0 flex items-center justify-center">
+            <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+          </span>
+        )}
+      </span>
+      <span className="text-xs text-[#6B7280] dark:text-[#94A3B8] select-none">
+        Sandbox
+      </span>
     </button>
   )
 }

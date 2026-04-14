@@ -15,8 +15,21 @@ export async function POST(_request: NextRequest) {
   const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
   if (!campaignId) return NextResponse.json({ error: 'No active campaign' }, { status: 400 })
 
-  // Hard-delete any existing test lead for this campaign
-  await prisma.lead.deleteMany({ where: { campaignId, is_test: true } })
+  // Hard-delete any existing test leads — cascade related records first
+  const existingTestLeads = await prisma.lead.findMany({
+    where: { campaignId, is_test: true },
+    select: { id: true },
+  })
+  const existingIds = existingTestLeads.map(l => l.id)
+
+  if (existingIds.length > 0) {
+    await prisma.$transaction([
+      prisma.auditLog.deleteMany({ where: { leadId: { in: existingIds } } }),
+      prisma.attachment.deleteMany({ where: { leadId: { in: existingIds } } }),
+      prisma.booking.deleteMany({ where: { leadId: { in: existingIds } } }),
+      prisma.lead.deleteMany({ where: { id: { in: existingIds } } }),
+    ])
+  }
 
   // Auto-generate quote number
   const quoteNumber = await generateQuoteNumber(campaignId)
