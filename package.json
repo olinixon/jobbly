@@ -1,6 +1,6 @@
 {
   "name": "jobbly",
-  "version": "1.51.2",
+  "version": "1.51.3",
   "private": true,
   "scripts": {
     "dev": "next dev",

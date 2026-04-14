@@ -250,6 +250,7 @@ export default async function JobDetailPage({
             propertyAddress={job.propertyAddress}
             customerEmail={job.customerEmail}
             customerPaidAt={job.customer_paid_at ? formatDateTime(job.customer_paid_at) : null}
+            hasQuote={!!job.quoteUrl}
           />
 
           {/* Financials (subcontractor-restricted: no commission or margin) */}
