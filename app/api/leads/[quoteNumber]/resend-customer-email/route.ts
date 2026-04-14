@@ -42,10 +42,12 @@ export async function POST(
     portalUrl
   )
 
+  const emailTo = lead.is_test ? process.env.EMAIL_OLI! : lead.customerEmail!
+  const emailSubject = lead.is_test ? `[SANDBOX] ${subject}` : subject
   await resend.emails.send({
     from: process.env.EMAIL_FROM!,
-    to: lead.customerEmail,
-    subject,
+    to: emailTo,
+    subject: emailSubject,
     html,
     attachments,
   })

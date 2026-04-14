@@ -12,6 +12,7 @@ export async function GET() {
     where: {
       campaignId: session.user.campaignId!,
       status: 'JOB_BOOKED',
+      is_test: false,
     },
     include: {
       booking: {

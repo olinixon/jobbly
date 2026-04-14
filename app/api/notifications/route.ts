@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
 
   const where: Record<string, unknown> = {}
   if (campaignId) where.campaignId = campaignId
+  if (session.user.role !== 'ADMIN') where.is_test = false
 
   const [newLeads, completions] = await Promise.all([
     prisma.lead.findMany({

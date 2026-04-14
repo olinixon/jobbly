@@ -19,6 +19,7 @@ interface Lead {
   duplicate_confidence?: string | null
   duplicate_dismissed?: boolean
   duplicate_lead_id?: string | null
+  is_test?: boolean
 }
 
 interface LeadsTableProps {
@@ -59,6 +60,9 @@ export default function LeadsTable({ leads, isAdmin, role }: LeadsTableProps) {
                   >⚠️</span>
                 )}
                 <span className="font-mono text-xs text-[#374151] dark:text-[#CBD5E1]">{lead.quoteNumber}</span>
+                {isAdmin && lead.is_test && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">TEST</span>
+                )}
               </div>
               <Badge status={lead.status} />
             </div>
@@ -104,6 +108,9 @@ export default function LeadsTable({ leads, isAdmin, role }: LeadsTableProps) {
                       >⚠️</span>
                     )}
                     {lead.quoteNumber}
+                    {isAdmin && lead.is_test && (
+                      <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">TEST</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3 font-medium text-[#111827] dark:text-[#F1F5F9]">{lead.customerName}</td>

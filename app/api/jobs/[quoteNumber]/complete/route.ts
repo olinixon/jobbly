@@ -102,7 +102,7 @@ export async function POST(
   let myobInvoiceUrl: string | null = null
   let stripeCustomerPaymentUrl: string | null = null
 
-  if (paymentProfile) {
+  if (!lead.is_test && paymentProfile) {
     try {
       if (paymentProfile.provider === 'MYOB') {
         const result = await createMyobInvoice({
@@ -177,7 +177,7 @@ export async function POST(
   }
 
   // Fallback: if no CustomerPaymentProfile payment was created, try CLIENT BillingProfile
-  if (!stripeCustomerPaymentUrl && !myobInvoiceUrl) {
+  if (!lead.is_test && !stripeCustomerPaymentUrl && !myobInvoiceUrl) {
     try {
       const billingProfile = await prisma.billingProfile.findFirst({
         where: {
@@ -254,17 +254,19 @@ export async function POST(
 
   // ── Step 6: Send customer email (fire-and-forget) ─────────────────────────
   ;(async () => {
-    if (lead.customerEmail) {
+    if (lead.customerEmail || lead.is_test) {
       try {
         const { subject, html, attachments, attachmentNotes } = await buildCustomerNotificationEmail(
           lead,
           lead.campaign,
           portalUrl
         )
+        const emailTo = lead.is_test ? process.env.EMAIL_OLI! : lead.customerEmail!
+        const emailSubject = lead.is_test ? `[SANDBOX] ${subject}` : subject
         await resend.emails.send({
           from: process.env.EMAIL_FROM!,
-          to: lead.customerEmail,
-          subject,
+          to: emailTo,
+          subject: emailSubject,
           html,
           attachments,
         })

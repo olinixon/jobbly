@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
 
   const where: Record<string, unknown> = {}
   if (scopeCampaignId) where.campaignId = scopeCampaignId
+  if (role !== 'ADMIN') where.is_test = false
 
   if (search) {
     where.OR = [

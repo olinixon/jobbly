@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       customerEmailSentAt: { not: null },
       customer_paid_at: null,
       customerPortalToken: { not: null },
+      is_test: false,
     },
     select: {
       id: true,

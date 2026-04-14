@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     where: {
       myob_invoice_id: { not: null },
       customer_paid_at: null,
+      is_test: false,
       jobCompletedAt: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
     },
     select: {

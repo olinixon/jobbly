@@ -12,6 +12,8 @@ import CallStatCards from '@/components/dashboard/CallStatCards'
 import PipelineStatCards from '@/components/dashboard/PipelineStatCards'
 import FinancialsStatCards from '@/components/dashboard/FinancialsStatCards'
 import SubcontractorStatCards from '@/components/dashboard/SubcontractorStatCards'
+import SandboxToggle from '@/components/dashboard/SandboxToggle'
+import SandboxBanner from '@/components/dashboard/SandboxBanner'
 import Link from 'next/link'
 import { computeUrgency } from '@/lib/urgency'
 
@@ -135,6 +137,7 @@ export default async function DashboardPage({
   if (campaignId) where.campaignId = campaignId
   if (statusFilter && !isNeedsActionFilter) where.status = statusFilter
   if (dateFilter) where.createdAt = dateFilter
+  if (role !== 'ADMIN') where.is_test = false
   if (search) {
     where.OR = [
       { quoteNumber: { contains: search } },
@@ -147,21 +150,24 @@ export default async function DashboardPage({
   const countStatsWhere: Record<string, unknown> = {}
   if (campaignId) countStatsWhere.campaignId = campaignId
   if (dateFilter) countStatsWhere.createdAt = dateFilter
+  if (role !== 'ADMIN') countStatsWhere.is_test = false
 
   // Financial stats filter by jobCompletedAt — must match commission page
   const financialStatsWhere: Record<string, unknown> = {
     campaignId: campaignId ?? undefined,
     status: 'JOB_COMPLETED',
     jobCompletedAt: { not: null, ...(dateFilter ?? {}) },
+    ...(role !== 'ADMIN' ? { is_test: false } : {}),
   }
   if (!campaignId) delete financialStatsWhere.campaignId
 
   // Needs-action count for standalone button (unfiltered — matches sidebar badge)
   const needsActionBaseWhere: Record<string, unknown> = { status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED'] } }
   if (campaignId) needsActionBaseWhere.campaignId = campaignId
+  if (role !== 'ADMIN') needsActionBaseWhere.is_test = false
 
   // Two-tier sort: active leads first (oldest first), completed last (oldest first)
-  const [activeLeadsRaw, completedLeadsRaw, total, countStats, financialStats, needsActionLeads] = await Promise.all([
+  const [activeLeadsRaw, completedLeadsRaw, total, countStats, financialStats, needsActionLeads, campaign] = await Promise.all([
     prisma.lead.findMany({ where: { ...where, status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED'] } }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.count({ where }),
@@ -183,6 +189,7 @@ export default async function DashboardPage({
       where: needsActionBaseWhere,
       select: { status: true, createdAt: true, jobBookedDate: true, invoiceUrl: true },
     }),
+    campaignId ? prisma.campaign.findUnique({ where: { id: campaignId }, select: { sandbox_active: true } }) : null,
   ])
   // Keep stats as alias for countStats for backward compat below
   const stats = countStats
@@ -234,6 +241,7 @@ export default async function DashboardPage({
   const isAdmin = role === 'ADMIN'
   const isClient = role === 'CLIENT'
   const isSubcontractor = role === 'SUBCONTRACTOR'
+  const sandboxActive = isAdmin ? (campaign?.sandbox_active ?? false) : false
 
   const exportStats = [
     { label: 'Total Leads', value: String(totalLeads) },
@@ -263,11 +271,15 @@ export default async function DashboardPage({
         subtitle="Campaign overview"
         action={
           <div className="flex items-center gap-2">
+            {isAdmin && <SandboxToggle sandboxActive={sandboxActive} />}
             {isAdmin && <AddLeadModal />}
             <DashboardExportButton stats={exportStats} dateLabel={dateLabel} />
           </div>
         }
       />
+
+      {/* Sandbox banner */}
+      {sandboxActive && <SandboxBanner />}
 
       {/* Stat cards */}
       {(isAdmin || isClient) ? (

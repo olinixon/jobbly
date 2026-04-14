@@ -13,10 +13,13 @@ export async function GET() {
   const campaignId = await getActiveCampaignId(session.user.campaignId, session.user.role)
   if (!campaignId) return NextResponse.json({ error: 'No campaign assigned.' }, { status: 400 })
 
+  const isAdmin = session.user.role === 'ADMIN'
+
   const leads = await prisma.lead.findMany({
     where: {
       campaignId,
       status: { not: 'JOB_COMPLETED' },
+      ...(isAdmin ? {} : { is_test: false }),
     },
     select: {
       id: true,
@@ -46,6 +49,7 @@ export async function GET() {
       campaignId,
       duplicate_confidence: { not: null },
       duplicate_dismissed: false,
+      ...(isAdmin ? {} : { is_test: false }),
     },
     select: {
       id: true,

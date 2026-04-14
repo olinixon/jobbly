@@ -121,6 +121,13 @@ export default async function LeadDetailPage({
         )}
       </div>
 
+      {/* Sandbox test banner (admin only) */}
+      {isAdmin && lead.is_test && (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 px-4 py-3 text-amber-800 dark:text-amber-200 text-sm">
+          <strong>This is a sandbox test lead.</strong> No real emails or payments will be processed. Emails are redirected to Oli.
+        </div>
+      )}
+
       {/* Duplicate warning banner */}
       {lead.duplicate_confidence && !lead.duplicate_dismissed && lead.duplicate_lead_id && (
         <DuplicateWarningBanner

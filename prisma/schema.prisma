@@ -18,6 +18,7 @@ model Campaign {
   clientMarginPercentage   Float
   status                   CampaignStatus @default(ACTIVE)
   startDate                DateTime
+  sandbox_active           Boolean        @default(false) // sandbox mode active — test lead exists
   customer_from_email      String?        // e.g. "hello@continuousgroup.co.nz" — sender address for customer emails
   customer_from_name       String?        // e.g. "Continuous Group" — display name shown to customers in their inbox
   createdAt                DateTime       @default(now())
@@ -139,6 +140,8 @@ model Lead {
   duplicate_reason            String?    // e.g. "Same phone number and address"
   duplicate_lead_id           String?    // quote_number of the matched lead
   cancellation_reason   String?    // Set when lead is marked as Job Cancelled
+  is_test               Boolean    @default(false) // sandbox test lead — not visible to CLIENT/SUBCONTRACTOR
+  customer_payment_method String?  // 'card' | 'bank_transfer' — set when checkout is created
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 

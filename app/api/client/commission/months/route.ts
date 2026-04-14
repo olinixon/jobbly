@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     campaignId,
     status: 'JOB_COMPLETED',
     jobCompletedAt: { not: null },
+    is_test: false,
   }
   if (from || to) {
     where.jobCompletedAt = {
