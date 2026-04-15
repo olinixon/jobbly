@@ -140,6 +140,7 @@ model Lead {
   duplicate_reason            String?    // e.g. "Same phone number and address"
   duplicate_lead_id           String?    // quote_number of the matched lead
   cancellation_reason   String?    // Set when lead is marked as Job Cancelled
+  not_converted_reason  String?    // Optional reason recorded when lead is marked NOT_CONVERTED
   is_test               Boolean    @default(false) // sandbox test lead — not visible to CLIENT/SUBCONTRACTOR
   customer_payment_method String?  // 'card' | 'bank_transfer' — set when checkout is created
   createdAt             DateTime   @default(now())
@@ -295,6 +296,7 @@ enum LeadStatus {
   JOB_BOOKED
   JOB_COMPLETED
   JOB_CANCELLED     // exit state — lead will not proceed further
+  NOT_CONVERTED     // exit state — lead was contacted but did not proceed to booking
 }
 
 enum CampaignStatus {

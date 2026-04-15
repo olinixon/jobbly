@@ -99,7 +99,7 @@ export default async function JobDetailPage({
 
       {/* Status pipeline */}
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 mb-6 shadow-sm">
-        <LeadStatusPipeline status={job.status} jobBookedDate={job.jobBookedDate} cancellationReason={job.cancellation_reason} />
+        <LeadStatusPipeline status={job.status} jobBookedDate={job.jobBookedDate} cancellationReason={job.cancellation_reason} notConvertedReason={job.not_converted_reason} />
       </div>
 
       {job.status === 'LEAD_RECEIVED' && (

@@ -17,7 +17,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
     if (campaignId) {
       const [activeLeads, duplicateCount] = await Promise.all([
         prisma.lead.findMany({
-          where: { campaignId, status: { not: 'JOB_COMPLETED' } },
+          where: { campaignId, status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED', 'NOT_CONVERTED'] } },
           select: { status: true, createdAt: true, jobBookedDate: true, invoiceUrl: true },
         }),
         prisma.lead.count({

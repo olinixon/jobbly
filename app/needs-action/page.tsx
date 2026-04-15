@@ -21,7 +21,7 @@ export default async function NeedsActionPage() {
   const leads = await prisma.lead.findMany({
     where: {
       campaignId,
-      status: { not: 'JOB_COMPLETED' },
+      status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED', 'NOT_CONVERTED'] },
     },
     select: {
       id: true,

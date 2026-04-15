@@ -135,7 +135,12 @@ export default async function DashboardPage({
 
   const where: Record<string, unknown> = {}
   if (campaignId) where.campaignId = campaignId
-  if (statusFilter && !isNeedsActionFilter) where.status = statusFilter
+  if (statusFilter && !isNeedsActionFilter) {
+    where.status = statusFilter
+  } else if (!isNeedsActionFilter) {
+    // Default view: hide NOT_CONVERTED leads — they are only visible when explicitly filtered
+    where.status = { not: 'NOT_CONVERTED' }
+  }
   if (dateFilter) where.createdAt = dateFilter
   if (role !== 'ADMIN') where.is_test = false
   if (search) {
@@ -146,8 +151,8 @@ export default async function DashboardPage({
     ]
   }
 
-  // Count stats filter by createdAt (when leads arrived)
-  const countStatsWhere: Record<string, unknown> = {}
+  // Count stats filter by createdAt (when leads arrived) — exclude NOT_CONVERTED from all stat cards
+  const countStatsWhere: Record<string, unknown> = { status: { not: 'NOT_CONVERTED' } }
   if (campaignId) countStatsWhere.campaignId = campaignId
   if (dateFilter) countStatsWhere.createdAt = dateFilter
   if (role !== 'ADMIN') countStatsWhere.is_test = false
@@ -162,13 +167,13 @@ export default async function DashboardPage({
   if (!campaignId) delete financialStatsWhere.campaignId
 
   // Needs-action count for standalone button (unfiltered — matches sidebar badge)
-  const needsActionBaseWhere: Record<string, unknown> = { status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED'] } }
+  const needsActionBaseWhere: Record<string, unknown> = { status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED', 'NOT_CONVERTED'] } }
   if (campaignId) needsActionBaseWhere.campaignId = campaignId
   if (role !== 'ADMIN') needsActionBaseWhere.is_test = false
 
   // Two-tier sort: active leads first (oldest first), completed last (oldest first)
   const [activeLeadsRaw, completedLeadsRaw, total, countStats, financialStats, needsActionLeads, campaign] = await Promise.all([
-    prisma.lead.findMany({ where: { ...where, status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED'] } }, orderBy: { createdAt: 'asc' } }),
+    prisma.lead.findMany({ where: { ...where, status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED', 'NOT_CONVERTED'] } }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.count({ where }),
     prisma.lead.findMany({

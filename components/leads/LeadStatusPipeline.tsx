@@ -13,9 +13,26 @@ interface LeadStatusPipelineProps {
   status: string
   jobBookedDate?: Date | null
   cancellationReason?: string | null
+  notConvertedReason?: string | null
 }
 
-export default function LeadStatusPipeline({ status, jobBookedDate, cancellationReason }: LeadStatusPipelineProps) {
+export default function LeadStatusPipeline({ status, jobBookedDate, cancellationReason, notConvertedReason }: LeadStatusPipelineProps) {
+  // NOT_CONVERTED is an exit state — replace pipeline with a simple grey badge
+  if (status === 'NOT_CONVERTED') {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+            Not Converted
+          </span>
+        </div>
+        <p className="text-sm text-[#6B7280] dark:text-[#94A3B8]">
+          {notConvertedReason ?? 'No reason provided'}
+        </p>
+      </div>
+    )
+  }
+
   // JOB_CANCELLED is an exit state — replace pipeline with a simple badge
   if (status === 'JOB_CANCELLED') {
     return (

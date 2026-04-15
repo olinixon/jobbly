@@ -1,4 +1,4 @@
-type LeadStatus = 'LEAD_RECEIVED' | 'QUOTE_SENT' | 'JOB_BOOKED' | 'JOB_COMPLETED' | 'JOB_CANCELLED'
+type LeadStatus = 'LEAD_RECEIVED' | 'QUOTE_SENT' | 'JOB_BOOKED' | 'JOB_COMPLETED' | 'JOB_CANCELLED' | 'NOT_CONVERTED'
 type CampaignStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED'
 type RoleType = 'ADMIN' | 'CLIENT' | 'SUBCONTRACTOR'
 
@@ -8,6 +8,7 @@ const leadStatusMap: Record<LeadStatus, { label: string; className: string }> = 
   JOB_BOOKED: { label: 'Job Booked', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' },
   JOB_COMPLETED: { label: 'Job Completed', className: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' },
   JOB_CANCELLED: { label: 'Job Cancelled', className: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' },
+  NOT_CONVERTED: { label: 'Not Converted', className: 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400' },
 }
 
 const campaignStatusMap: Record<CampaignStatus, { label: string; className: string }> = {

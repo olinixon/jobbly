@@ -646,6 +646,43 @@ export async function sendJobCancelledAlert(params: JobCancelledAlertParams) {
   })
 }
 
+// ─── Lead Not Converted Alert (to Oli) ────────────────────────────────────────
+
+interface LeadNotConvertedAlertParams {
+  quoteNumber: string
+  customerName: string
+  propertyAddress: string
+  markedByName: string
+  markedByRole: string
+  reason: string | null
+}
+
+export async function sendLeadNotConvertedAlert(params: LeadNotConvertedAlertParams) {
+  const html = emailShell(`
+    <tr><td style="padding:40px 40px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#6B7280;">Lead not converted — ${params.quoteNumber}</h1>
+      <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Hi Oli, a lead has been marked as not converted.</p>
+      ${card(`
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('Quote number', params.quoteNumber)}
+          ${row('Customer name', params.customerName)}
+          ${row('Property address', params.propertyAddress)}
+          ${row('Marked by', `${params.markedByName} (${params.markedByRole})`)}
+          ${row('Reason', params.reason ?? 'No reason provided')}
+        </table>
+      `)}
+      <p style="margin:0;font-size:14px;color:#71717a;">Log in to Jobbly to view the full lead detail.</p>
+    </td></tr>
+  `)
+
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM!,
+    to: process.env.EMAIL_OLI!,
+    subject: `Lead not converted — ${params.quoteNumber} — ${params.customerName}`,
+    html,
+  })
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function sendBookingRescheduleEmail(params: BookingRescheduleParams) {

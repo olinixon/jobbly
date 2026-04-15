@@ -142,12 +142,12 @@ export default async function LeadDetailPage({
 
       {/* Status pipeline */}
       <div className="bg-white dark:bg-[#1E293B] border border-[#E5E7EB] dark:border-[#334155] rounded-xl p-6 mb-6 shadow-sm">
-        <LeadStatusPipeline status={lead.status} jobBookedDate={lead.jobBookedDate} cancellationReason={lead.cancellation_reason} />
+        <LeadStatusPipeline status={lead.status} jobBookedDate={lead.jobBookedDate} cancellationReason={lead.cancellation_reason} notConvertedReason={lead.not_converted_reason} />
       </div>
 
       {/* Book This Job — admin and client at LEAD_RECEIVED */}
       {(isAdmin || isClient) && lead.status === 'LEAD_RECEIVED' && (
-        <BookThisJobCard quoteNumber={lead.quoteNumber} />
+        <BookThisJobCard quoteNumber={lead.quoteNumber} showNotConverted={isAdmin} />
       )}
 
       {/* Job Booked Actions — admin full (rebook/unbook/cancel), client read-only */}

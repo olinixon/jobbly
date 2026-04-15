@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
 
   const dateFilter = getDateFilter(dateRange, from, to)
 
-  const countStatsWhere: Record<string, unknown> = {}
+  const countStatsWhere: Record<string, unknown> = { status: { not: 'NOT_CONVERTED' } }
   if (campaignId) countStatsWhere.campaignId = campaignId
   if (dateFilter) countStatsWhere.createdAt = dateFilter
 
