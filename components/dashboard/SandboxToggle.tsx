@@ -10,6 +10,7 @@ interface SandboxToggleProps {
 
 export default function SandboxToggle({ sandboxActive, campaignId }: SandboxToggleProps) {
   const router = useRouter()
+  const [isActive, setIsActive] = useState(sandboxActive)
   const [loading, setLoading] = useState(false)
   const [confirmDisable, setConfirmDisable] = useState(false)
 
@@ -21,7 +22,10 @@ export default function SandboxToggle({ sandboxActive, campaignId }: SandboxTogg
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaignId }),
       })
-      if (res.ok) router.refresh()
+      if (res.ok) {
+        setIsActive(true)
+        router.refresh()
+      }
     } finally {
       setLoading(false)
     }
@@ -36,7 +40,10 @@ export default function SandboxToggle({ sandboxActive, campaignId }: SandboxTogg
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaignId }),
       })
-      if (res.ok) router.refresh()
+      if (res.ok) {
+        setIsActive(false)
+        router.refresh()
+      }
     } finally {
       setLoading(false)
     }
@@ -44,7 +51,7 @@ export default function SandboxToggle({ sandboxActive, campaignId }: SandboxTogg
 
   function handleToggleClick() {
     if (loading) return
-    if (sandboxActive) {
+    if (isActive) {
       setConfirmDisable(true)
     } else {
       enableSandbox()
@@ -77,22 +84,22 @@ export default function SandboxToggle({ sandboxActive, campaignId }: SandboxTogg
   return (
     <button
       role="switch"
-      aria-checked={sandboxActive}
+      aria-checked={isActive}
       onClick={handleToggleClick}
       disabled={loading}
       className="flex items-center gap-2 disabled:opacity-60 cursor-pointer"
-      title={sandboxActive ? 'Sandbox on — click to turn off' : 'Sandbox off — click to enable'}
+      title={isActive ? 'Sandbox on — click to turn off' : 'Sandbox off — click to enable'}
     >
       {/* Track */}
       <span
         className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${
-          sandboxActive ? 'bg-green-500' : 'bg-[#D1D5DB] dark:bg-[#4B5563]'
+          isActive ? 'bg-green-500' : 'bg-[#D1D5DB] dark:bg-[#4B5563]'
         } ${loading ? 'opacity-60' : ''}`}
       >
         {/* Thumb */}
         <span
           className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 mt-0.5 ${
-            sandboxActive ? 'translate-x-[18px]' : 'translate-x-0.5'
+            isActive ? 'translate-x-[18px]' : 'translate-x-0.5'
           }`}
         />
         {/* Loading spinner overlaid on thumb */}
