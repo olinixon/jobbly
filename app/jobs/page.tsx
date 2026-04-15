@@ -21,8 +21,9 @@ export default async function JobsPage({
   const statusFilter = sp.status ?? ''
 
   const isNeedsActionFilter = statusFilter === 'NEEDS_ACTION'
+  const isNotConvertedFilter = statusFilter === 'NOT_CONVERTED'
 
-  // New Jobs page: restricted to LEAD_RECEIVED and QUOTE_SENT only
+  // New Jobs page: default view shows LEAD_RECEIVED and QUOTE_SENT only
   const NEW_JOB_STATUSES = ['LEAD_RECEIVED', 'QUOTE_SENT'] as const
   type NewJobStatus = typeof NEW_JOB_STATUSES[number]
 
@@ -35,13 +36,17 @@ export default async function JobsPage({
     ]
   }
 
-  // If a valid single-status filter is applied, use it; otherwise show both new-job statuses
-  const statusIn: NewJobStatus[] =
-    statusFilter && !isNeedsActionFilter && NEW_JOB_STATUSES.includes(statusFilter as NewJobStatus)
-      ? [statusFilter as NewJobStatus]
-      : [...NEW_JOB_STATUSES]
-
-  const activeWhere = { ...baseWhere, status: { in: statusIn } }
+  // NOT_CONVERTED filter: query those leads directly, scoped to campaign
+  // Otherwise use the whitelist of active statuses
+  const activeWhere = isNotConvertedFilter
+    ? { ...baseWhere, status: 'NOT_CONVERTED' as const }
+    : (() => {
+        const statusIn: NewJobStatus[] =
+          statusFilter && !isNeedsActionFilter && NEW_JOB_STATUSES.includes(statusFilter as NewJobStatus)
+            ? [statusFilter as NewJobStatus]
+            : [...NEW_JOB_STATUSES]
+        return { ...baseWhere, status: { in: statusIn } }
+      })()
 
   // Needs-action count (unfiltered, matches sidebar badge)
   const needsActionBaseWhere: Record<string, unknown> = { status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED'] } }

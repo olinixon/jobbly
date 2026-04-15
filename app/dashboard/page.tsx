@@ -132,6 +132,7 @@ export default async function DashboardPage({
   const callStatsRange = getCallStatsRange(dateRange, fromParam, toParam)
 
   const isNeedsActionFilter = statusFilter === 'NEEDS_ACTION'
+  const isNotConvertedFilter = statusFilter === 'NOT_CONVERTED'
 
   const where: Record<string, unknown> = {}
   if (campaignId) where.campaignId = campaignId
@@ -172,7 +173,8 @@ export default async function DashboardPage({
   if (role !== 'ADMIN') needsActionBaseWhere.is_test = false
 
   // Two-tier sort: active leads first (oldest first), completed last (oldest first)
-  const [activeLeadsRaw, completedLeadsRaw, total, countStats, financialStats, needsActionLeads, campaign] = await Promise.all([
+  // When NOT_CONVERTED filter is active, a third slot fetches those leads directly
+  const [activeLeadsRaw, completedLeadsRaw, total, countStats, financialStats, needsActionLeads, campaign, notConvertedLeadsRaw] = await Promise.all([
     prisma.lead.findMany({ where: { ...where, status: { notIn: ['JOB_COMPLETED', 'JOB_CANCELLED', 'NOT_CONVERTED'] } }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.findMany({ where: { ...where, status: 'JOB_COMPLETED' }, orderBy: { createdAt: 'asc' } }),
     prisma.lead.count({ where }),
@@ -195,6 +197,10 @@ export default async function DashboardPage({
       select: { status: true, createdAt: true, jobBookedDate: true, invoiceUrl: true },
     }),
     campaignId ? prisma.campaign.findUnique({ where: { id: campaignId }, select: { sandbox_active: true } }) : null,
+    // Fetch NOT_CONVERTED leads when that filter is active (where already has status: 'NOT_CONVERTED')
+    isNotConvertedFilter
+      ? prisma.lead.findMany({ where, orderBy: { createdAt: 'asc' } })
+      : prisma.lead.findMany({ take: 0 }),
   ])
   // Keep stats as alias for countStats for backward compat below
   const stats = countStats
@@ -210,6 +216,9 @@ export default async function DashboardPage({
         if (a.urgencyLevel === b.urgencyLevel) return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         return a.urgencyLevel === 'HIGH' ? -1 : 1
       })
+  } else if (isNotConvertedFilter) {
+    // Show only NOT_CONVERTED leads — skip the two-tier results which cannot return them
+    allLeads = notConvertedLeadsRaw.map(l => ({ ...l, urgencyLevel: null as 'HIGH' | 'MEDIUM' | null }))
   } else {
     allLeads = [
       ...withUrgency,
